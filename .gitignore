@@ -1,6 +1,8 @@
 # node modules
 node_modules
 
+# custom scripts
+scripts/
 .claude/
 .vscode/
 CLAUDE.md
@@ -9,6 +11,9 @@ AGENTS.md
 # SECRETS
 .env
 .env.bak
+
+# configs
+.vscode/
 
 # builds
 dist/
