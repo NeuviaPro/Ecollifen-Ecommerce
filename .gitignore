@@ -1,6 +1,7 @@
 node_modules/
 AGENTS.md
-CLAUDE.node_modules
+CLAUDE.md
+.claude/
 node_modules/
 .env
 .env.*
