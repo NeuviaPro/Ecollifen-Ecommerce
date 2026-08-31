@@ -1,0 +1,25 @@
+---
+import Layout from '@/layouts/Layout.astro';
+import Hero from '@/components/sections/Hero.astro';
+import ProductoEstrella from '@/components/sections/ProductoEstrella.astro';
+import Vitrinas from '@/components/sections/Vitrinas.astro';
+import ServicioTecnico from '@/components/sections/ServicioTecnico.astro';
+import DestacadosAgricultura from '@/components/sections/DestacadosAgricultura.astro';
+import Asesoria from '@/components/sections/Asesoria.astro';
+---
+
+{/*
+  Orden según el rediseño: el producto manda y la asesoría respalda.
+  El hero abre el funnel; enseguida las vitrinas y una fila de producto REAL
+  con precio y stock ocupan la parte alta. Raíz Viva recibe su bloque propio en
+  rol Tierra, el servicio técnico baja a una banda horizontal que se lee como
+  garantía, y el cierre invita a la asesoría.
+*/}
+<Layout title="Inicio">
+  <Hero />
+  <Vitrinas />
+  <DestacadosAgricultura />
+  <ProductoEstrella />
+  <ServicioTecnico />
+  <Asesoria />
+</Layout>

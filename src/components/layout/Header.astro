@@ -1,0 +1,175 @@
+---
+import { Picture } from "astro:assets";
+import MainNav from "./MainNav.astro";
+import Logo from '@/assets/ecollifenLogo.png';
+import { navigation } from '@/lib/navigation';
+import CartBadge from '@/components/cart/CartBadge';
+import { asesoriaHref } from '@/lib/contacto';
+
+// Nota: el inicio de sesión de clientes queda FUERA de este primer alcance,
+// por eso el header no lo enlaza. La cuenta nativa de WooCommerce existe en
+// /wp/mi-cuenta si más adelante se decide exponerla.
+---
+
+<header class="w-full">
+    {/* Barra utilitaria: verde más oscuro que el nav (como el diseño) */}
+    <div class="bg-green-950 text-green-100">
+        <div class="mx-auto flex max-w-6xl items-center justify-between gap-4 px-6 py-2 text-xs">
+            <p class="font-mono">
+                Soluciones que echan raíces · Despacho a todo Chile
+            </p>
+            <div class="hidden items-center gap-4 sm:flex">
+                <a href="/servicio-tecnico" class="transition-colors hover:text-white">Servicio técnico</a>
+                <a href="/contacto" class="transition-colors hover:text-white">Cotiza con asesoría</a>
+            </div>
+        </div>
+    </div>
+
+    {/* Nav principal: Verde Bosque (rol Marca/Header del manual) */}
+    <div class="bg-primary text-primary-contrast">
+        <div class="mx-auto flex max-w-6xl items-center gap-6 px-6 py-3">
+            <a href="/" class="flex shrink-0 items-center">
+                <Picture
+                    src={Logo}
+                    formats={['avif', 'webp']}
+                    alt="Ecollifén"
+                    width={52}
+                    height={52}
+                    densities={[1, 2]}
+                    class="h-13 w-auto"
+                />
+            </a>
+
+            <MainNav class="hidden lg:flex justify-around" />
+
+            <div class="ml-auto flex items-center gap-1 sm:gap-2">
+                {/* Buscador (solo escritorio) */}
+                <label class="hidden items-center gap-2 rounded-lg bg-white/10 px-3 py-1.5 md:flex">
+                    <svg class="size-4 text-green-200" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+                        <circle cx="11" cy="11" r="7"></circle>
+                        <path d="m20 20-3-3"></path>
+                    </svg>
+                    <input
+                        type="search"
+                        placeholder="Buscar productos…"
+                        class="w-40 bg-transparent text-sm text-white placeholder:text-green-200 focus:outline-none"
+                    />
+                </label>
+
+                {/* Carrito — abre el drawer */}
+                <button type="button" data-cart-toggle aria-label="Abrir carrito" class="relative flex items-center gap-2 rounded-lg p-2.5 transition-colors hover:bg-white/10">
+                    <svg class="size-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <circle cx="9" cy="20" r="1.5"></circle>
+                        <circle cx="18" cy="20" r="1.5"></circle>
+                        <path d="M2 3h3l2.4 12.4a1 1 0 0 0 1 .8h9.3a1 1 0 0 0 1-.8L21 7H6"></path>
+                    </svg>
+                    <CartBadge client:load transition:persist />
+                    <span class="hidden text-sm font-medium sm:inline">Carrito</span>
+                </button>
+
+                {/* Abrir menú móvil */}
+                <button
+                    type="button"
+                    data-menu-open
+                    aria-label="Abrir menú"
+                    aria-controls="mobile-menu"
+                    aria-expanded="false"
+                    class="rounded-lg p-2.5 transition-colors hover:bg-white/10 lg:hidden"
+                >
+                    <svg class="size-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+                        <path d="M4 6h16M4 12h16M4 18h16"></path>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    {/* ===== Menú móvil (drawer lateral) ===== */}
+    <div id="mobile-menu" class="lg:hidden">
+        {/* Fondo oscuro; al tocarlo cierra */}
+        <div
+            data-menu-overlay
+            data-menu-close
+            class="fixed inset-0 z-40 bg-black/50 opacity-0 pointer-events-none transition-opacity duration-200"
+        ></div>
+
+        {/* Panel deslizante */}
+        <aside
+            data-menu-panel
+            class="fixed top-0 right-0 z-50 flex h-dvh w-80 max-w-[85vw] translate-x-full flex-col bg-primary text-primary-contrast shadow-xl transition-transform duration-200"
+        >
+            <div class="flex items-center justify-between border-b border-white/10 px-5 py-4">
+                <span class="font-display text-lg font-semibold">Menú</span>
+                <button
+                    type="button"
+                    data-menu-close
+                    aria-label="Cerrar menú"
+                    class="rounded-lg p-2 transition-colors hover:bg-white/10"
+                >
+                    <svg class="size-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+                        <path d="M6 6l12 12M18 6 6 18"></path>
+                    </svg>
+                </button>
+            </div>
+
+            <nav class="flex flex-col p-2">
+                {navigation.map((item) => (
+                    <a
+                        href={item.href}
+                        class="rounded-lg px-3 py-3 text-base font-medium transition-colors hover:bg-white/10"
+                    >{item.name}</a>
+                ))}
+            </nav>
+
+            <div class="mt-auto flex flex-col gap-1 border-t border-white/10 p-2 text-sm text-green-100">
+                <a href="/contacto" class="rounded-lg px-3 py-3 transition-colors hover:bg-white/10">Cotiza con asesoría</a>
+                <a href={asesoriaHref()} class="rounded-lg px-3 py-3 transition-colors hover:bg-white/10">Escribir por WhatsApp</a>
+            </div>
+        </aside>
+    </div>
+</header>
+
+<script>
+    // Drawer del menú móvil. Se re-vincula en cada navegación por el
+    // ClientRouter (astro:page-load); las funciones consultan el DOM al vuelo.
+    function els() {
+        return {
+            panel: document.querySelector('[data-menu-panel]'),
+            overlay: document.querySelector('[data-menu-overlay]'),
+            openBtn: document.querySelector('[data-menu-open]'),
+        };
+    }
+
+    function openMenu() {
+        const { panel, overlay, openBtn } = els();
+        panel?.classList.remove('translate-x-full');
+        overlay?.classList.remove('opacity-0', 'pointer-events-none');
+        document.body.classList.add('overflow-hidden');
+        openBtn?.setAttribute('aria-expanded', 'true');
+    }
+
+    function closeMenu() {
+        const { panel, overlay, openBtn } = els();
+        panel?.classList.add('translate-x-full');
+        overlay?.classList.add('opacity-0', 'pointer-events-none');
+        document.body.classList.remove('overflow-hidden');
+        openBtn?.setAttribute('aria-expanded', 'false');
+    }
+
+    function bindMenu() {
+        els().openBtn?.addEventListener('click', openMenu);
+        document.querySelectorAll('[data-menu-close]').forEach((el) =>
+            el.addEventListener('click', closeMenu)
+        );
+        // Cerrar al tocar cualquier enlace del panel.
+        els().panel?.addEventListener('click', (e) => {
+            if (e.target instanceof Element && e.target.closest('a')) closeMenu();
+        });
+    }
+
+    // Vincular tras cada carga/navegación; cerrar con Escape (una sola vez).
+    document.addEventListener('astro:page-load', bindMenu);
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') closeMenu();
+    });
+</script>

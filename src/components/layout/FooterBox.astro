@@ -1,0 +1,30 @@
+---
+export type FooterLink = {
+    name: string,
+    href: string,
+}
+
+interface Props {
+    title: string,
+    items: FooterLink[],
+}
+
+const { title, items } = Astro.props;
+---
+
+<div class="flex flex-col gap-4">
+    <h3 class="font-mono text-xs uppercase tracking-[0.16em] text-green-300">
+        { title }
+    </h3>
+
+    <ul class="flex flex-col gap-2.5">
+        {items.map( (item) =>
+            <li>
+                <a
+                    href={item.href}
+                    class="text-sm text-cream-200/75 transition-colors hover:text-cream-50"
+                >{item.name}</a>
+            </li>
+        )}
+    </ul>
+</div>

@@ -1,0 +1,23 @@
+---
+import { navigation } from '@/lib/navigation';
+
+const { class: className } = Astro.props;
+
+// El rediseño marca en verde claro la sección en la que estás. Se compara con
+// startsWith para que /tienda/motosierras siga marcando "Tienda".
+const ruta = Astro.url.pathname;
+const esActivo = (href: string) => href !== '/' && ruta.startsWith(href);
+---
+
+<nav class:list={["flex items-center gap-5.5", className]}>
+    {navigation.map( (item) =>
+        <a
+            class:list={[
+                "text-sm whitespace-nowrap transition-colors hover:text-green-300",
+                esActivo(item.href) ? "font-bold text-green-300" : "font-medium",
+            ]}
+            aria-current={esActivo(item.href) ? 'page' : undefined}
+            href={item.href}
+        >{item.name}</a>
+    )}
+</nav>

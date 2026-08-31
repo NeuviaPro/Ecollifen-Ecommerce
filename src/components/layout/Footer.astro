@@ -1,0 +1,59 @@
+---
+import FooterBox from "./FooterBox.astro";
+import type { FooterLink } from "./FooterBox.astro";
+
+type FooterColumn = {
+    title: string,
+    items: FooterLink[],
+}
+
+// Los enlaces de Tienda apuntan a categorías REALES de WooCommerce; si mañana
+// cambian los slugs, hay que actualizarlos aquí (o pasar a leerlos de la API).
+const columns: FooterColumn[] = [
+    {
+        title: 'Tienda',
+        items: [
+            { name: 'Agrícola', href: '/tienda/agricola' },
+            { name: 'Jardinería', href: '/tienda/jardineria' },
+            { name: 'Herramientas a batería', href: '/tienda/herramientas-a-bateria' },
+            { name: 'Ver todo el catálogo', href: '/tienda' },
+        ],
+    },
+    {
+        title: 'Servicio técnico',
+        items: [
+            { name: 'Qué resolvemos', href: '/servicio-tecnico' },
+            { name: 'Cómo funciona', href: '/servicio-tecnico' },
+            { name: 'Cobertura', href: '/servicio-tecnico' },
+            { name: 'Agendar servicio', href: '/servicio-tecnico' },
+        ],
+    },
+    {
+        title: 'Empresa',
+        items: [
+            { name: 'Nosotros', href: '/nosotros' },
+            { name: 'Solicitar asesoría', href: '/contacto' },
+            { name: 'marca@ecollifen.cl', href: 'mailto:marca@ecollifen.cl' },
+        ],
+    },
+];
+---
+
+<footer class="bg-primary text-primary-contrast">
+    <div class="mx-auto max-w-6xl px-6 py-14">
+        <div class="grid grid-cols-1 gap-10 sm:grid-cols-3">
+            {columns.map( (column) =>
+                <FooterBox title={column.title} items={column.items} />
+            )}
+        </div>
+
+        <div class="mt-12 flex flex-col gap-3 border-t border-cream-50/10 pt-6 sm:flex-row sm:items-center sm:justify-center">
+            <p class="text-xs text-cream-200/60">
+                &copy; { new Date().getFullYear() } Ecollifén SpA · Todos los derechos reservados.
+            </p>
+            <p class="font-display text-sm italic text-green-300">
+                Soluciones que echan raíces.
+            </p>
+        </div>
+    </div>
+</footer>

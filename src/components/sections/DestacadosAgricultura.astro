@@ -1,0 +1,110 @@
+---
+// "Lo más pedido esta temporada": la fila de producto real con precio y stock
+// que el rediseño manda poner en la parte alta de la home.
+//
+// Ahora es un carrusel de avance continuo (Swiper). Trae lo que el cliente
+// marque como "Destacado" en WooCommerce y completa con productos en stock:
+// con 4 tarjetas fijas el carrusel no tenía sentido.
+import { getDestacados } from '@/lib/api';
+import type { WooProduct } from '@/lib/api';
+import ProductCard from '@/components/product/ProductCard.astro';
+
+let productos: WooProduct[] = [];
+try {
+    productos = await getDestacados(12);
+} catch (error) {
+    console.error('[destacados] No se pudieron cargar los productos:', error);
+}
+---
+
+<section class="mx-auto max-w-6xl px-6 py-14">
+    <div class="mb-6 flex items-end justify-between gap-4">
+        <div>
+            <p class="font-mono text-[11px] tracking-[0.16em] text-isotipo">CON PRECIO Y STOCK A LA VISTA</p>
+            <h2 class="mt-1.5 font-display text-3xl font-semibold text-primary">
+                Lo más pedido esta temporada
+            </h2>
+        </div>
+        <a href="/tienda" class="text-sm font-medium whitespace-nowrap text-isotipo hover:text-primary">
+            Ver todo el catálogo →
+        </a>
+    </div>
+
+    {productos.length === 0 ? (
+        <p class="rounded-lg border border-border bg-surface p-6 text-muted">
+            No hay productos para mostrar. Revisa que WordPress esté respondiendo.
+        </p>
+    ) : (
+        <div class="destacados-swiper swiper" data-destacados data-total={productos.length}>
+            <div class="swiper-wrapper">
+                {productos.map((product) => (
+                    <div class="swiper-slide h-auto">
+                        <ProductCard product={product} />
+                    </div>
+                ))}
+            </div>
+        </div>
+    )}
+</section>
+
+<style is:global>
+    /* El movimiento continuo necesita avance lineal: con la curva por defecto
+       el carrusel "salta" en cada transición en vez de deslizarse parejo. */
+    .destacados-swiper .swiper-wrapper {
+        transition-timing-function: linear;
+    }
+    /* Las tarjetas deben estirarse a la misma altura dentro del slide. */
+    .destacados-swiper .swiper-slide {
+        height: auto;
+        display: flex;
+    }
+    .destacados-swiper .swiper-slide > article {
+        width: 100%;
+    }
+</style>
+
+<script>
+    // Carrusel de avance continuo: en vez de saltar de a una tarjeta, se
+    // desplaza lento y sin pausa (delay 0 + velocidad alta), como una cinta.
+    // Se detiene al pasar el mouse para poder leer y hacer clic.
+    import Swiper from 'swiper';
+    import { Autoplay, FreeMode } from 'swiper/modules';
+    import 'swiper/css';
+    import 'swiper/css/free-mode';
+
+    let instancia: Swiper | null = null;
+
+    function initDestacados() {
+        instancia?.destroy(true, true);
+        instancia = null;
+
+        const el = document.querySelector<HTMLElement>('[data-destacados]');
+        if (!el) return;
+
+        const total = Number(el.dataset.total ?? '0');
+        // El loop de Swiper necesita bastante más slides que los visibles; con
+        // pocos productos se queda quieto en vez de dar saltos raros.
+        if (total < 6) return;
+
+        instancia = new Swiper(el, {
+            modules: [Autoplay, FreeMode],
+            slidesPerView: 1.15,
+            spaceBetween: 18,
+            loop: true,
+            speed: 5000,
+            freeMode: { enabled: true, momentum: false },
+            autoplay: {
+                delay: 0,
+                disableOnInteraction: false,
+                pauseOnMouseEnter: true,
+            },
+            breakpoints: {
+                640: { slidesPerView: 2.2, spaceBetween: 18 },
+                1024: { slidesPerView: 3.4, spaceBetween: 18 },
+                1280: { slidesPerView: 4, spaceBetween: 18 },
+            },
+        });
+    }
+
+    document.addEventListener('astro:page-load', initDestacados);
+</script>

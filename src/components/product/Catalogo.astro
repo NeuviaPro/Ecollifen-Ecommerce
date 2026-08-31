@@ -1,0 +1,399 @@
+---
+// Layout de catálogo, compartido por /tienda (general) y /tienda/[categoria].
+// Orden, filtro de stock y paginación funcionan en el cliente (ver <script>).
+import ProductCard from '@/components/product/ProductCard.astro';
+import type { WooProduct, WooCategory } from '@/lib/api';
+
+interface Props {
+    title: string;
+    products: WooProduct[];
+    categorias: WooCategory[];
+    currentSlug?: string;    // slug de la categoría activa (undefined = /tienda general)
+    badge?: string;          // etiqueta de categoría para las tarjetas
+    totalCatalogo?: number;  // total del catálogo, para el contador de "Todas las categorías"
+}
+
+const { title, products, categorias, currentSlug, badge, totalCatalogo } = Astro.props;
+
+// El sidebar agrupa las subcategorías dentro de su padre y las despliega en un
+// acordeón: con 23 categorías, listarlas planas llenaba la pantalla completa
+// (y en móvil obligaba a un scroll largo dentro del drawer).
+// "Sin categorizar" no se muestra: es una categoría técnica de WooCommerce, no
+// algo que un cliente busque. Sus productos siguen apareciendo en "Todas".
+const OCULTAS = ['sin-categorizar'];
+
+const visibles = categorias.filter((c) => !OCULTAS.includes(c.slug));
+const hijosDe = (id: number) => visibles.filter((c) => c.parent === id);
+
+// Las raíz primero por volumen de catálogo: lo que más tiene, más arriba.
+const padres = visibles
+    .filter((c) => c.parent === 0)
+    .sort((a, b) => b.count - a.count);
+
+// Rango real de precios (para el filtro y su leyenda).
+const precios = products.map((p) => Number(p.price)).filter((n) => n > 0);
+const precioMin = precios.length ? Math.min(...precios) : 0;
+const precioMax = precios.length ? Math.max(...precios) : 0;
+const money = new Intl.NumberFormat('es-CL', {
+    style: 'currency',
+    currency: 'CLP',
+    maximumFractionDigits: 0,
+});
+---
+
+<div class="mx-auto max-w-6xl px-6 py-10">
+    <nav class="font-mono text-xs text-muted">
+        <a href="/" class="hover:text-primary">Inicio</a> /
+        {currentSlug ? (
+            <span><a href="/tienda" class="hover:text-primary">Tienda</a> / <span class="text-foreground">{title}</span></span>
+        ) : (
+            <span class="text-foreground">Tienda</span>
+        )}
+    </nav>
+
+    <div class="mt-4 flex items-baseline justify-between gap-4">
+        <h1 class="font-display text-4xl font-semibold text-primary">{title}</h1>
+        <span data-count class="font-mono text-sm whitespace-nowrap text-muted">{products.length} productos</span>
+    </div>
+
+    <div class="mt-6 flex items-center justify-between gap-4 border-b border-border pb-4">
+        <button
+            type="button"
+            data-filtros-open
+            class="flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-surface-alt lg:hidden"
+        >
+            <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M3 5h18M6 12h12M10 19h4"></path></svg>
+            Filtrar
+        </button>
+        <label class="ml-auto flex items-center gap-2 text-sm text-muted">
+            <span class="font-mono text-xs tracking-wide">ORDENAR</span>
+            <select data-sort class="rounded-lg border border-border bg-surface px-3 py-2 text-foreground focus:border-ring focus:outline-none">
+                <option value="relevancia">Relevancia</option>
+                <option value="precio-asc">Precio: menor a mayor</option>
+                <option value="precio-desc">Precio: mayor a menor</option>
+                <option value="nuevos">Más nuevos</option>
+            </select>
+        </label>
+    </div>
+
+    <div class="mt-6 grid gap-8 lg:grid-cols-[240px_1fr]">
+        {/* Overlay del drawer de filtros (solo móvil) */}
+        <div data-filtros-overlay class="fixed inset-0 z-40 bg-black/50 opacity-0 pointer-events-none transition-opacity lg:hidden"></div>
+
+        {/* En móvil: drawer deslizante. En escritorio: sidebar estático. */}
+        <aside
+            data-filtros
+            class="fixed inset-y-0 right-0 z-50 w-80 max-w-[85vw] translate-x-full overflow-y-auto bg-background p-4 transition-transform lg:static lg:z-auto lg:w-auto lg:max-w-none lg:translate-x-0 lg:overflow-visible lg:bg-transparent lg:p-0"
+        >
+            <div class="rounded-2xl border border-border bg-surface p-5">
+                <div class="mb-4 flex items-center justify-between lg:hidden">
+                    <span class="font-display text-lg font-semibold text-primary">Filtros</span>
+                    <button type="button" data-filtros-close aria-label="Cerrar filtros" class="rounded-lg p-1.5 transition-colors hover:bg-surface-alt">
+                        <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg>
+                    </button>
+                </div>
+                <h2 class="font-mono text-xs tracking-wide text-muted">CATEGORÍA</h2>
+                <ul class="mt-3 flex flex-col gap-1">
+                    <li>
+                        <a
+                            href="/tienda"
+                            class:list={[
+                                "flex items-center justify-between rounded-lg px-2.5 py-1.5 text-sm transition-colors hover:bg-surface-alt",
+                                !currentSlug ? "font-semibold text-primary" : "text-foreground",
+                            ]}
+                        >
+                            <span>Todas las categorías</span>
+                            {totalCatalogo !== undefined && (
+                                <span class="font-mono text-xs text-muted">{totalCatalogo}</span>
+                            )}
+                        </a>
+                    </li>
+                    {padres.map((padre) => {
+                        const hijos = hijosDe(padre.id);
+
+                        // Sin subcategorías: enlace directo, sin acordeón que abrir.
+                        if (hijos.length === 0) return (
+                            <li>
+                                <a
+                                    href={`/tienda/${padre.slug}`}
+                                    class:list={[
+                                        "flex items-center justify-between rounded-lg px-2.5 py-1.5 text-sm transition-colors hover:bg-surface-alt",
+                                        padre.slug === currentSlug ? "font-semibold text-primary" : "text-foreground",
+                                    ]}
+                                >
+                                    <span>{padre.name}</span>
+                                    <span class="font-mono text-xs text-muted">{padre.count}</span>
+                                </a>
+                            </li>
+                        );
+
+                        // Con subcategorías: <details> nativo, ya accesible y sin JS.
+                        // Se abre solo si estás dentro de esa rama.
+                        const activoDentro = padre.slug === currentSlug || hijos.some((h) => h.slug === currentSlug);
+
+                        return (
+                            <li>
+                                <details open={activoDentro} class="group">
+                                    <summary
+                                        class:list={[
+                                            "flex cursor-pointer list-none items-center justify-between rounded-lg px-2.5 py-1.5 text-sm transition-colors hover:bg-surface-alt [&::-webkit-details-marker]:hidden",
+                                            activoDentro ? "font-semibold text-primary" : "text-foreground",
+                                        ]}
+                                    >
+                                        <span>{padre.name}</span>
+                                        <span class="flex items-center gap-1.5">
+                                            <span class="font-mono text-xs text-muted">{padre.count}</span>
+                                            <svg class="size-3.5 text-muted transition-transform group-open:rotate-90" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                                <path d="m9 6 6 6-6 6" />
+                                            </svg>
+                                        </span>
+                                    </summary>
+
+                                    <ul class="mt-0.5 mb-1 ml-3.5 flex flex-col gap-0.5 border-l border-border pl-2">
+                                        <li>
+                                            <a
+                                                href={`/tienda/${padre.slug}`}
+                                                class:list={[
+                                                    "flex items-center justify-between rounded-lg px-2.5 py-1.5 text-[13px] transition-colors hover:bg-surface-alt",
+                                                    padre.slug === currentSlug ? "font-semibold text-primary" : "text-muted",
+                                                ]}
+                                            >Ver todo</a>
+                                        </li>
+                                        {hijos.map((hijo) => (
+                                            <li>
+                                                <a
+                                                    href={`/tienda/${hijo.slug}`}
+                                                    class:list={[
+                                                        "flex items-center justify-between gap-2 rounded-lg px-2.5 py-1.5 text-[13px] transition-colors hover:bg-surface-alt",
+                                                        hijo.slug === currentSlug ? "font-semibold text-primary" : "text-foreground",
+                                                    ]}
+                                                >
+                                                    <span>{hijo.name}</span>
+                                                    <span class="font-mono text-xs text-muted">{hijo.count}</span>
+                                                </a>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </details>
+                            </li>
+                        );
+                    })}
+                </ul>
+
+                <div class="mt-5 border-t border-border pt-4">
+                    <h2 class="font-mono text-xs tracking-wide text-muted">PRECIO</h2>
+                    <div class="mt-3 flex items-center gap-2">
+                        <input
+                            type="number"
+                            data-price-min
+                            min="0"
+                            placeholder="Mín"
+                            aria-label="Precio mínimo"
+                            class="w-full rounded-lg border border-border bg-white px-2.5 py-1.5 text-sm text-foreground focus:border-ring focus:outline-none"
+                        />
+                        <span class="text-muted">—</span>
+                        <input
+                            type="number"
+                            data-price-max
+                            min="0"
+                            placeholder="Máx"
+                            aria-label="Precio máximo"
+                            class="w-full rounded-lg border border-border bg-white px-2.5 py-1.5 text-sm text-foreground focus:border-ring focus:outline-none"
+                        />
+                    </div>
+                    <p class="mt-2 text-xs text-muted">{money.format(precioMin)} – {money.format(precioMax)}</p>
+                </div>
+
+                <div class="mt-5 border-t border-border pt-4">
+                    <h2 class="font-mono text-xs tracking-wide text-muted">DISPONIBILIDAD</h2>
+                    <label class="mt-3 flex items-center gap-2 text-sm text-foreground">
+                        <input type="checkbox" data-stock-filter class="size-4 accent-cta" />
+                        Solo en stock
+                    </label>
+                </div>
+
+                <button
+                    type="button"
+                    data-clear
+                    class="mt-5 w-full rounded-lg border border-border py-2 text-sm font-medium text-muted transition-colors hover:bg-surface-alt"
+                >
+                    Limpiar filtros
+                </button>
+            </div>
+        </aside>
+
+        <div>
+            {products.length === 0 ? (
+                <p class="rounded-lg border border-border bg-surface p-6 text-muted">
+                    Aún no hay productos en esta categoría.
+                </p>
+            ) : (
+                <Fragment>
+                    <div class="grid grid-cols-2 gap-5 lg:grid-cols-3" data-grid>
+                        {products.map((product) => (
+                            <ProductCard product={product} category={badge} />
+                        ))}
+                    </div>
+
+                    {/* El contenido lo genera el script según filtro/orden/página */}
+                    <nav data-pagination class="mt-10 flex flex-wrap items-center justify-center gap-2" aria-label="Paginación"></nav>
+
+                    {/* Estado vacío: lo muestra el script cuando el filtro deja 0 resultados.
+                        No es solo un aviso — ofrece salida por asesoría, que es el diferencial. */}
+                    <div data-empty hidden class="rounded-2xl border border-border bg-surface p-8 text-center">
+                        <h3 class="font-display text-xl font-semibold text-primary">
+                            Ningún producto cumple los filtros
+                        </h3>
+                        <p class="mx-auto mt-2 max-w-md text-sm leading-relaxed text-muted">
+                            Prueba ampliar el rango de precio o quitar la restricción de stock.
+                            Si buscas algo puntual, te lo conseguimos.
+                        </p>
+                        <div class="mt-6 flex flex-col justify-center gap-3 sm:flex-row">
+                            <button
+                                type="button"
+                                data-clear
+                                class="rounded-lg bg-cta px-6 py-3 font-semibold text-cta-contrast transition-colors hover:bg-green-600"
+                            >Limpiar filtros</button>
+                            <a
+                                href="/contacto"
+                                class="rounded-lg border-[1.5px] border-border px-6 py-3 font-semibold text-primary transition-colors hover:bg-surface-alt"
+                            >Pedir por asesoría</a>
+                        </div>
+                    </div>
+                </Fragment>
+            )}
+        </div>
+    </div>
+</div>
+
+<script>
+    // Catálogo interactivo: filtro de stock + orden + paginación (15 por vista).
+    // Se re-inicia en cada navegación (astro:page-load) por el ClientRouter.
+    const PAGE_SIZE = 15;
+
+    type Item = { el: HTMLElement, orden: number, price: number, stock: string, id: number };
+
+    function initCatalogo() {
+        const grid = document.querySelector('[data-grid]');
+        if (!grid) return;
+        const pager = document.querySelector('[data-pagination]');
+        const emptyMsg = document.querySelector('[data-empty]');
+        const sortSel = document.querySelector('[data-sort]');
+        const stockChk = document.querySelector('[data-stock-filter]');
+        const priceMinEl = document.querySelector('[data-price-min]');
+        const priceMaxEl = document.querySelector('[data-price-max]');
+        const countEl = document.querySelector('[data-count]');
+
+        const items: Item[] = Array.from(grid.children).map((el, orden) => ({
+            el: el as HTMLElement,
+            orden,
+            price: Number(el.getAttribute('data-price')) || 0,
+            stock: el.getAttribute('data-stock') || '',
+            id: Number(el.getAttribute('data-id')) || 0,
+        }));
+
+        let current = 1;
+
+        function ordenar(a: Item, b: Item) {
+            const modo = sortSel instanceof HTMLSelectElement ? sortSel.value : 'relevancia';
+            if (modo === 'precio-asc') return a.price - b.price;
+            if (modo === 'precio-desc') return b.price - a.price;
+            if (modo === 'nuevos') return b.id - a.id;   // id mayor = más nuevo
+            return a.orden - b.orden;                     // relevancia (orden original)
+        }
+
+        const btnBase = 'flex h-9 min-w-9 items-center justify-center rounded-lg border border-border px-2 text-sm transition-colors hover:bg-surface-alt';
+        const btnActivo = 'aria-[current=page]:border-primary aria-[current=page]:bg-primary aria-[current=page]:text-primary-contrast';
+        const btnFlecha = 'disabled:pointer-events-none disabled:opacity-40';
+
+        function construirPager(totalPages: number) {
+            if (!pager) return;
+            pager.innerHTML = '';
+            if (totalPages <= 1) return;
+
+            const boton = (html: string, page: number, extra: string, disabled = false, activo = false) => {
+                const b = document.createElement('button');
+                b.type = 'button';
+                b.innerHTML = html;
+                b.className = `${btnBase} ${extra}`;
+                if (activo) b.setAttribute('aria-current', 'page');
+                if (disabled) b.disabled = true;
+                else b.addEventListener('click', () => {
+                    current = page;
+                    render();
+                    grid!.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                });
+                pager.appendChild(b);
+            };
+
+            boton('&lsaquo;', current - 1, btnFlecha, current === 1);
+            for (let p = 1; p <= totalPages; p++) boton(String(p), p, btnActivo, false, p === current);
+            boton('&rsaquo;', current + 1, btnFlecha, current === totalPages);
+        }
+
+        function render() {
+            const soloStock = stockChk instanceof HTMLInputElement && stockChk.checked;
+            const min = priceMinEl instanceof HTMLInputElement && priceMinEl.value ? Number(priceMinEl.value) : 0;
+            const max = priceMaxEl instanceof HTMLInputElement && priceMaxEl.value ? Number(priceMaxEl.value) : Infinity;
+
+            const cumple = (it: Item) =>
+                (!soloStock || it.stock === 'instock') && it.price >= min && it.price <= max;
+
+            const visibles = items.filter(cumple).sort(ordenar);
+            const ocultos = items.filter((it) => !cumple(it));
+
+            // Reordenar el DOM: primero los visibles (en orden), luego los ocultos.
+            visibles.forEach((it) => grid!.appendChild(it.el));
+            ocultos.forEach((it) => { it.el.style.display = 'none'; grid!.appendChild(it.el); });
+
+            const totalPages = Math.max(1, Math.ceil(visibles.length / PAGE_SIZE));
+            current = Math.min(current, totalPages);
+
+            visibles.forEach((it, i) => {
+                it.el.style.display = Math.floor(i / PAGE_SIZE) + 1 === current ? '' : 'none';
+            });
+
+            if (countEl) countEl.textContent = `${visibles.length} productos`;
+            if (emptyMsg) emptyMsg.toggleAttribute('hidden', visibles.length > 0);
+            construirPager(totalPages);
+        }
+
+        sortSel?.addEventListener('change', () => { current = 1; render(); });
+        stockChk?.addEventListener('change', () => { current = 1; render(); });
+        priceMinEl?.addEventListener('input', () => { current = 1; render(); });
+        priceMaxEl?.addEventListener('input', () => { current = 1; render(); });
+
+        // --- Drawer de filtros (móvil) ---
+        const filtrosPanel = document.querySelector('[data-filtros]');
+        const filtrosOverlay = document.querySelector('[data-filtros-overlay]');
+
+        function abrirFiltros() {
+            filtrosPanel?.classList.remove('translate-x-full');
+            filtrosOverlay?.classList.remove('opacity-0', 'pointer-events-none');
+            document.body.classList.add('overflow-hidden');
+        }
+        function cerrarFiltros() {
+            filtrosPanel?.classList.add('translate-x-full');
+            filtrosOverlay?.classList.add('opacity-0', 'pointer-events-none');
+            document.body.classList.remove('overflow-hidden');
+        }
+
+        document.querySelector('[data-filtros-open]')?.addEventListener('click', abrirFiltros);
+        filtrosOverlay?.addEventListener('click', cerrarFiltros);
+        document.querySelectorAll('[data-filtros-close]').forEach((el) => el.addEventListener('click', cerrarFiltros));
+
+        // --- Limpiar filtros --- (hay dos botones: el del sidebar y el del estado vacío)
+        document.querySelectorAll('[data-clear]').forEach((btn) => btn.addEventListener('click', () => {
+            if (sortSel instanceof HTMLSelectElement) sortSel.value = 'relevancia';
+            if (stockChk instanceof HTMLInputElement) stockChk.checked = false;
+            if (priceMinEl instanceof HTMLInputElement) priceMinEl.value = '';
+            if (priceMaxEl instanceof HTMLInputElement) priceMaxEl.value = '';
+            current = 1;
+            render();
+        }));
+
+        render();
+    }
+
+    document.addEventListener('astro:page-load', initCatalogo);
+</script>
