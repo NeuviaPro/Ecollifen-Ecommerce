@@ -31,7 +31,7 @@ git commit -m "deploy: $(date '+%Y-%m-%d %H:%M')"
 echo "→ Pushing production..."
 git push origin production
 
-echo "→ Volviendo a main..."
-git checkout main
+# echo "→ Volviendo a main..."
+# git checkout main
 
 echo "✓ Listo"
