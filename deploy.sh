@@ -21,7 +21,7 @@ NC='\033[0m'
 info()    { echo -e "${BLUE}→${NC} $1"; }
 success() { echo -e "${GREEN}✓${NC} $1"; }
 warning() { echo -e "${YELLOW}⚠${NC} $1"; }
-error()   { echo -e "${RED}✗ ERROR:${NC} $1"; echo ""; echo "Deploy fallido — revisa deploy.log para más detalles"; echo ""; read -p "Presiona Enter para cerrar..."; exit 1; }
+error()   { echo -e "${RED}✗ ERROR:${NC} $1"; echo ""; echo "Deploy fallido — revisa deploy.log"; echo ""; read -p "Presiona Enter para cerrar..."; exit 1; }
 
 # ─── Verificaciones iniciales ──────────────────────────
 info "Verificando rama actual..."
@@ -54,13 +54,20 @@ fi
 echo "  Archivos en dist/:"
 ls dist/
 
-# ─── Copia temporal ────────────────────────────────────
+# ─── Copia temporal del build ──────────────────────────
 TMP_DIR="/tmp/ecollifen-build-$(date +%s)"
 info "Guardando build en $TMP_DIR..."
 cp -r dist/ "$TMP_DIR"
-echo "  Archivos copiados:"
-ls "$TMP_DIR"
 success "Build guardado"
+
+# ─── Respaldar .env ────────────────────────────────────
+info "Respaldando .env..."
+if [ -f ".env" ]; then
+  cp .env /tmp/ecollifen-env-backup
+  success ".env respaldado"
+else
+  warning "No se encontró .env, continuando sin respaldar"
+fi
 
 # ─── Switch a production ───────────────────────────────
 info "Cambiando a rama production..."
@@ -99,8 +106,19 @@ else
 fi
 
 # ─── Volver a main ─────────────────────────────────────
+info "Volviendo a main..."
 git checkout main
 success "De vuelta en main"
+
+# ─── Restaurar .env ────────────────────────────────────
+info "Restaurando .env..."
+if [ -f "/tmp/ecollifen-env-backup" ]; then
+  cp /tmp/ecollifen-env-backup .env
+  rm /tmp/ecollifen-env-backup
+  success ".env restaurado"
+else
+  warning "No había .env que restaurar"
+fi
 
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
