@@ -4,25 +4,34 @@ set -e
 echo "→ Building Ecollifen..."
 npm run build
 
-echo "→ Switching to production branch..."
+echo "→ Guardando build temporalmente..."
+cp -r dist/ /tmp/ecollifen-build
+
+echo "→ Switching to production..."
 git checkout production
 
-echo "→ Cleaning old build..."
-git rm -rf . --quiet
-git checkout HEAD -- .cpanel.yml
-git checkout HEAD -- .gitignore
+echo "→ Limpiando build anterior..."
+    find . -not -name '.git' \
+        -not -name '.gitignore' \
+        -not -name '.cpanel.yml' \
+        -not -path './.git/*' \
+        -maxdepth 1 \
+        -delete
 
-echo "→ Copying new build..."
-cp -r dist/. .
+echo "→ Copiando nuevo build..."
+cp -r /tmp/ecollifen-build/. .
 
-echo "→ Committing build..."
+echo "→ Limpiando temporal..."
+rm -rf /tmp/ecollifen-build
+
+echo "→ Committing..."
 git add -A
 git commit -m "deploy: $(date '+%Y-%m-%d %H:%M')"
 
-echo "→ Pushing to origin/production..."
+echo "→ Pushing production..."
 git push origin production
 
-echo "→ Back to main..."
+echo "→ Volviendo a main..."
 git checkout main
 
-echo "✓ Build pusheado a production"
+echo "✓ Listo"
