@@ -1,0 +1,34 @@
+# Reglas para el sitio Astro estático en la raíz del dominio.
+# OJO: WordPress vive en /wp y tiene su propio .htaccess, que manda dentro de
+# esa carpeta. Aquí no se toca nada de WordPress.
+#
+# Este archivo vive en public/ para que cada build lo copie a dist/.
+
+# Página de error propia (la de Astro, con la identidad de la marca).
+ErrorDocument 404 /404.html
+
+# Comprimir texto: HTML, CSS, JS y SVG viajan mucho más livianos.
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/html text/plain text/css text/xml
+    AddOutputFilterByType DEFLATE application/javascript application/json
+    AddOutputFilterByType DEFLATE image/svg+xml
+</IfModule>
+
+<IfModule mod_expires.c>
+    ExpiresActive On
+
+    # Los assets de /_astro/ llevan un hash en el nombre: cuando cambian, cambia
+    # la URL. Por eso se pueden cachear un año sin miedo a servir algo viejo.
+    <IfModule mod_headers.c>
+        <FilesMatch "\.(js|css|woff2)$">
+            Header set Cache-Control "public, max-age=31536000, immutable"
+        </FilesMatch>
+    </IfModule>
+
+    # El HTML, en cambio, debe revalidarse: es lo que cambia en cada despliegue.
+    ExpiresByType text/html "access plus 0 seconds"
+    ExpiresByType image/webp "access plus 1 month"
+    ExpiresByType image/avif "access plus 1 month"
+    ExpiresByType image/jpeg "access plus 1 month"
+    ExpiresByType image/png "access plus 1 month"
+</IfModule>
