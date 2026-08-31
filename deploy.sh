@@ -19,7 +19,7 @@ echo "→ Limpiando build anterior..."
         -delete
 
 echo "→ Copiando nuevo build..."
-cp -r /tmp/ecollifen-build/. .
+cp -r /tmp/ecollifen-build/* .
 
 echo "→ Limpiando temporal..."
 rm -rf /tmp/ecollifen-build
