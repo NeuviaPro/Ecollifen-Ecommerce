@@ -1,7 +1,7 @@
 ---
 deployment:
     tasks:
-        - export DEPLOYPATH=/home/USUARIO_CPANEL/public_html/
+        - export DEPLOYPATH=/home/ecollifen/public_html/
         - /bin/cp -R . $DEPLOYPATH
         - /bin/rm -rf $DEPLOYPATH/.git
         - /bin/rm -f $DEPLOYPATH/.cpanel.yml
