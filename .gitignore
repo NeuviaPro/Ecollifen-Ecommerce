@@ -9,3 +9,6 @@ AGENTS.md
 # SECRETS
 .env
 .env.bak
+
+# builds
+dist/
