@@ -55,3 +55,6 @@ success "En rama production"
 # ─── Limpieza ──────────────────────────────────────────
 info "Limpiando build anterior..."
 find .
+
+echo ""
+read -p "Presiona Enter para cerrar..."
