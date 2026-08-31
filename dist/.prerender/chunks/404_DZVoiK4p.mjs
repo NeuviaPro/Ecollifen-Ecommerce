@@ -1,0 +1,18 @@
+import { d as __exportAll, t as $$Layout } from "./Layout_CMnH6v60.mjs";
+import { T as createComponent, _ as maybeRenderHead, o as renderComponent, p as renderTemplate } from "./server_BlytaQjR.mjs";
+//#region src/pages/404.astro
+var _404_exports = /* @__PURE__ */ __exportAll({
+	default: () => $$404,
+	file: () => $$file,
+	url: () => $$url
+});
+var $$404 = createComponent(($$result, $$props, $$slots) => {
+	return renderTemplate`${renderComponent($$result, "Layout", $$Layout, { "title": "Página no encontrada" }, { "default": ($$result) => renderTemplate`${maybeRenderHead($$result)}<main class="mx-auto flex min-h-[70vh] max-w-4xl flex-col items-center justify-center px-6 py-20 text-center"><p class="font-mono text-xs uppercase tracking-[0.2em] text-cta">Error 404</p><!-- El número como marca de agua: presente, pero sin robarle el foco al mensaje. --><span aria-hidden="true" class="mt-6 select-none font-display text-[7rem] font-black leading-none text-green-900/10 md:text-[12rem]">404</span><h1 class="-mt-6 font-display text-3xl font-bold text-balance text-foreground md:-mt-10 md:text-5xl">Esta ruta no echó raíces.</h1><p class="mt-4 max-w-prose text-muted">La página que buscas no existe o cambió de dirección. Puede que el enlace esté mal escrito, o que la hayamos trasplantado a otro lugar.</p><div class="mt-10 flex w-full flex-col gap-3 sm:w-auto sm:flex-row"><a href="/" class="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-6 py-3 font-semibold text-primary-contrast transition-colors hover:bg-primary-hover"><svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 9.5 12 3l9 6.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1V9.5Z"></path></svg>Volver al inicio</a><a href="/tienda" class="inline-flex items-center justify-center gap-2 rounded-lg bg-cta px-6 py-3 font-semibold text-cta-contrast transition-colors hover:bg-cta-hover hover:text-primary-contrast">Ir a la tienda<svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"></path></svg></a></div></main>` })}`;
+}, "C:/Users/Gamer/Desktop/ProyectosWEB/Ecollifen/Ecollifen-astro/ecollifen/src/pages/404.astro", void 0);
+var $$file = "C:/Users/Gamer/Desktop/ProyectosWEB/Ecollifen/Ecollifen-astro/ecollifen/src/pages/404.astro";
+var $$url = "/404";
+//#endregion
+//#region \0virtual:astro:page:src/pages/404@_@astro
+var page = () => _404_exports;
+//#endregion
+export { page };

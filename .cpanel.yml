@@ -2,7 +2,7 @@
 deployment:
     tasks:
         - export DEPLOYPATH=/home/ecollifen/public_html/
-        - /bin/cp -R . $DEPLOYPATH
+        - /bin/cp -R dist/. $DEPLOYPATH
         - /bin/rm -rf $DEPLOYPATH/.git
         - /bin/rm -f $DEPLOYPATH/.cpanel.yml
         - /bin/rm -f $DEPLOYPATH/.gitignore
