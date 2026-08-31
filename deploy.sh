@@ -1,60 +1,57 @@
 #!/bin/bash
-
 set -e
 
-PROJECT_DIR="$(pwd)"
-BUILD_DIR="/tmp/ecollifen-build"
+# ─── Colores ───────────────────────────────────────────
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m'
 
-cleanup() {
-    echo "→ Limpiando..."
-    rm -rf "$BUILD_DIR"
+# ─── Helpers ───────────────────────────────────────────
+info()    { echo -e "${BLUE}→${NC} $1"; }
+success() { echo -e "${GREEN}✓${NC} $1"; }
+warning() { echo -e "${YELLOW}⚠${NC} $1"; }
+error()   { echo -e "${RED}✗${NC} $1"; exit 1; }
 
-    echo "→ Volviendo a main..."
-    git checkout main
-}
+# ─── Verificaciones iniciales ──────────────────────────
+info "Verificando rama actual..."
+CURRENT_BRANCH=$(git branch --show-current)
+if [ "$CURRENT_BRANCH" != "main" ]; then
+  error "Debes estar en main para deployar. Rama actual: $CURRENT_BRANCH"
+fi
 
-trap cleanup EXIT
+info "Verificando cambios sin commitear..."
+if ! git diff-index --quiet HEAD --; then
+  error "Tienes cambios sin commitear en main. Haz commit primero."
+fi
 
-echo "→ Building Ecollifen..."
+# ─── Push main ─────────────────────────────────────────
+info "Pusheando main a GitHub..."
+git push origin main
+success "main actualizado en GitHub"
 
+# ─── Build ─────────────────────────────────────────────
+info "Buildeando Ecollifen..."
 npm run build
+success "Build completado"
 
-echo "→ Guardando build temporalmente..."
+# ─── Verificar que dist/ existe ────────────────────────
+if [ ! -d "dist" ]; then
+  error "La carpeta dist/ no existe. El build falló."
+fi
 
-rm -rf "$BUILD_DIR"
-mkdir -p "$BUILD_DIR"
-cp -r dist/. "$BUILD_DIR/"
+# ─── Copia temporal ────────────────────────────────────
+TMP_DIR="/tmp/ecollifen-build-$(date +%s)"
+info "Guardando build en $TMP_DIR..."
+cp -r dist/ "$TMP_DIR"
+success "Build guardado"
 
-echo "→ Actualizando production..."
-
-git fetch origin
+# ─── Switch a production ───────────────────────────────
+info "Cambiando a rama production..."
 git checkout production
-git reset --hard origin/production
+success "En rama production"
 
-echo "→ Limpiando build anterior..."
-
-find . -maxdepth 1 \
-    ! -name '.git' \
-    ! -name '.gitignore' \
-    ! -name '.cpanel.yml' \
-    ! -name '.git' \
-    ! -path './.git' \
-    -delete
-
-echo "→ Copiando nuevo build..."
-
-cp -r "$BUILD_DIR"/. .
-
-echo "→ Committing..."
-
-git add -A
-
-git commit -m "deploy: $(date '+%Y-%m-%d %H:%M')" || {
-    echo "→ No hay cambios para commit."
-}
-
-echo "→ Pushing production..."
-
-git push origin production
-
-echo "✓ Deploy terminado"
+# ─── Limpieza ──────────────────────────────────────────
+info "Limpiando build anterior..."
+find .
