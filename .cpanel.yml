@@ -1,0 +1,20 @@
+---
+deployment:
+  tasks:
+    - export DEPLOYPATH=/home/ecollifen/public_html/
+    - /bin/rsync -avz --exclude='.git*' --exclude='cpanel.yml' ./ $DEPLOYPATH
+    # La causa real de la caída del 2026-09-03: el propio despliegue de Git
+    # Version Control deja public_html en permisos 700 (solo el dueño puede
+    # entrar). El proceso de LiteSpeed que atiende visitas públicas corre con
+    # permisos más restringidos, no podía entrar, y caía a una página por
+    # defecto genérica del servidor — de ahí que todo diera 404 aunque los
+    # archivos en disco fueran correctos. Se confirmó con el fallo de
+    # AutoSSL: escribió su archivo de validación bien, pero no pudo leerlo
+    # de vuelta por HTTP. Sin recursividad: fue solo la carpeta de nivel
+    # superior la que quedó mal, no su contenido.
+    - "chmod 755 $DEPLOYPATH"
+    # Purga la caché de LiteSpeed tras cada deploy. Sin esto, LiteSpeed puede
+    # seguir sirviendo la versión anterior de una página aunque el archivo en
+    # disco ya esté actualizado. El "|| true" evita que un fallo aquí tumbe
+    # el resto del despliegue.
+    - "curl -s -H 'Host: ecollifen.cl' -H 'X-LiteSpeed-Purge: *' -o /dev/null http://127.0.0.1/ || true"
