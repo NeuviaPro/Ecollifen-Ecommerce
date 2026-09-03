@@ -2,14 +2,26 @@
 import { Picture } from "astro:assets";
 import MainNav from "./MainNav.astro";
 import Logo from '@/assets/ecollifenLogo.png';
-import { navigation } from '@/lib/navigation';
+import { navigation, tiendaAreas } from '@/lib/navigation';
 import CartBadge from '@/components/cart/CartBadge';
 import Buscador from '@/components/search/Buscador.astro';
 import { asesoriaHref } from '@/lib/contacto';
+import { getAllWooCategories } from '@/lib/api';
 
 // Nota: el inicio de sesión de clientes queda FUERA de este primer alcance,
 // por eso el header no lo enlaza. La cuenta nativa de WooCommerce existe en
 // /wp/mi-cuenta si más adelante se decide exponerla.
+
+// El Header se renderiza en TODAS las páginas (~120 en el build). Sin
+// memoizar, esto sería una llamada a WordPress por página; getAllWooCategories
+// cachea, así que en la práctica es una sola petición real por build.
+let categoriasExistentes = new Set<string>();
+try {
+    const categorias = await getAllWooCategories();
+    categoriasExistentes = new Set(categorias.map((c) => c.slug));
+} catch (error) {
+    console.error('[header] No se pudieron cargar las categorías:', error);
+}
 ---
 
 <header class="w-full">
@@ -41,7 +53,7 @@ import { asesoriaHref } from '@/lib/contacto';
                 />
             </a>
 
-            <MainNav class="hidden lg:flex justify-around" />
+            <MainNav class="hidden lg:flex justify-around" categoriasExistentes={categoriasExistentes} />
 
             <div class="ml-auto flex items-center gap-1 sm:gap-2">
                 {/* Buscador de escritorio; en móvil va dentro del drawer */}
@@ -110,10 +122,45 @@ import { asesoriaHref } from '@/lib/contacto';
 
             <nav class="flex flex-col p-2">
                 {navigation.map((item) => (
-                    <a
-                        href={item.href}
-                        class="rounded-lg px-3 py-3 text-base font-medium transition-colors hover:bg-white/10"
-                    >{item.name}</a>
+                    item.name === 'Tienda' ? (
+                        <details class="group">
+                            {/* Sin <a> anidado a propósito: un link dentro de <summary> es
+                                ambiguo entre "navegar" y "desplegar" según el navegador.
+                                "Ver todo el catálogo" va como primer ítem de abajo. */}
+                            <summary class="flex cursor-pointer list-none items-center justify-between rounded-lg px-3 py-3 text-base font-medium transition-colors hover:bg-white/10 [&::-webkit-details-marker]:hidden">
+                                Tienda
+                                <svg class="size-4 shrink-0 transition-transform group-open:rotate-90" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                    <path d="m9 6 6 6-6 6" />
+                                </svg>
+                            </summary>
+
+                            <div class="ml-3.5 flex flex-col gap-0.5 border-l border-white/15 pl-2.5">
+                                <a href="/tienda" class="rounded-lg px-2.5 py-2.5 text-sm font-semibold transition-colors hover:bg-white/10">
+                                    Ver todo el catálogo
+                                </a>
+                                <p class="px-2.5 pt-2 pb-1 font-mono text-[10px] tracking-wide text-green-200/70 uppercase">Por área</p>
+                                {tiendaAreas.map((area) => {
+                                    const existe = categoriasExistentes.has(area.slug);
+                                    return existe ? (
+                                        <a
+                                            href={`/tienda/${area.slug}`}
+                                            class="rounded-lg px-2.5 py-2.5 text-sm transition-colors hover:bg-white/10"
+                                        >{area.name}</a>
+                                    ) : (
+                                        <span class="flex items-center justify-between gap-2 px-2.5 py-2.5 text-sm text-green-200/60">
+                                            {area.name}
+                                            <span class="font-mono text-[9px] tracking-wide uppercase">Próx.</span>
+                                        </span>
+                                    );
+                                })}
+                            </div>
+                        </details>
+                    ) : (
+                        <a
+                            href={item.href}
+                            class="rounded-lg px-3 py-3 text-base font-medium transition-colors hover:bg-white/10"
+                        >{item.name}</a>
+                    )
                 ))}
             </nav>
 

@@ -50,9 +50,18 @@ if (d?.length && d?.width && d?.height) {
 
 // Estilos base para el HTML que viene de WordPress (sin plugin de tipografía).
 const contenidoWP = "leading-relaxed [&_p]:mb-3 [&_ul]:my-3 [&_ul]:list-disc [&_ul]:pl-5 [&_li]:mb-1 [&_strong]:font-semibold [&_a]:text-isotipo [&_a]:underline";
+
+// Open Graph: para que un link de producto compartido por WhatsApp muestre su
+// propia foto, nombre y precio en vez de la tarjeta genérica del sitio.
+const descripcionOG = (product.short_description || product.description || '')
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/&[a-z]+;|&#\d+;/gi, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 160) || `${money.format(Number(product.price))} · ${estado.label}. Cotiza con asesoría técnica en Ecollifén.`;
 ---
 
-<Layout title={product.name}>
+<Layout title={product.name} description={descripcionOG} image={mainImage?.src} type="product">
     <div class="mx-auto max-w-6xl px-6 py-10">
         <nav class="font-mono text-xs text-muted">
             <a href="/" class="hover:text-primary">Inicio</a> /

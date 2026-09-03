@@ -183,3 +183,24 @@ export async function getWooCategories(): Promise<WooCategory[]> {
 
     return wooGetAll<WooCategory>("/wc/v3/products/categories", params, "las categorías");
 }
+
+// Todas las categorías, incluidas las que aún no tienen productos (Woo, por
+// defecto, las esconde). Hace falta para /tienda/[categoria]: si una
+// categoría existe pero está vacía (ej. "Repuestos", "Raíz Viva"), su página
+// debe generarse igual — con el mensaje "aún no hay productos" — en vez de
+// no generarse y devolver 404, que fue justo el bug que encontramos el
+// 2026-09-03: los enlaces a categorías nuevas y vacías daban 404 porque
+// getStaticPaths solo miraba categorías con productos.
+let categoriasCache: Promise<WooCategory[]> | null = null;
+
+export function getAllWooCategories(): Promise<WooCategory[]> {
+    // Memoizado: el build instancia el header en ~120 páginas y cada una
+    // llamaría a esto si no se cachea — una sola llamada real por build.
+    if (!categoriasCache) {
+        const params = wooAuth();
+        params.set("hide_empty", "false");
+        categoriasCache = wooGetAll<WooCategory>("/wc/v3/products/categories", params, "las categorías");
+    }
+
+    return categoriasCache;
+}

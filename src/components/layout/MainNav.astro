@@ -1,23 +1,82 @@
 ---
-import { navigation } from '@/lib/navigation';
+import { navigation, tiendaAreas } from '@/lib/navigation';
 
-const { class: className } = Astro.props;
+interface Props {
+    class?: string;
+    /** Slugs de categoría que existen de verdad en WooCommerce hoy — decide
+     * qué área del dropdown de Tienda es un link real y cuál va como
+     * "próximamente". Ver navigation.ts para el porqué. */
+    categoriasExistentes: Set<string>;
+}
+
+const { class: className, categoriasExistentes } = Astro.props;
 
 // El rediseño marca en verde claro la sección en la que estás. Se compara con
 // startsWith para que /tienda/motosierras siga marcando "Tienda".
 const ruta = Astro.url.pathname;
 const esActivo = (href: string) => href !== '/' && ruta.startsWith(href);
+const enTienda = ruta.startsWith('/tienda');
 ---
 
 <nav class:list={["flex items-center gap-5.5", className]}>
-    {navigation.map( (item) =>
-        <a
-            class:list={[
-                "text-sm whitespace-nowrap transition-colors hover:text-green-300",
-                esActivo(item.href) ? "font-bold text-green-300" : "font-medium",
-            ]}
-            aria-current={esActivo(item.href) ? 'page' : undefined}
-            href={item.href}
-        >{item.name}</a>
-    )}
+    {navigation.map((item) => (
+        item.name === 'Tienda' ? (
+            // Único ítem con submenú por ahora: mismo patrón (group-hover) se
+            // puede reutilizar si más adelante otro ítem lo necesita.
+            <div class="group relative">
+                <a
+                    href={item.href}
+                    class:list={[
+                        "flex items-center gap-1 text-sm whitespace-nowrap transition-colors hover:text-green-300",
+                        enTienda ? "font-bold text-green-300" : "font-medium",
+                    ]}
+                    aria-current={enTienda ? 'page' : undefined}
+                >
+                    Tienda
+                    <svg class="size-3.5 transition-transform group-hover:rotate-180" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="m6 9 6 6 6-6" />
+                    </svg>
+                </a>
+
+                {/* Puente invisible: sin esto, mover el mouse del link al panel
+                    pasa por el hueco y group-hover se pierde a mitad de camino. */}
+                <div class="absolute top-full left-0 h-2 w-56"></div>
+
+                <div class="invisible absolute top-full left-0 z-40 mt-2 w-64 rounded-xl border border-border bg-surface p-2 opacity-0 shadow-xl transition-[opacity,visibility] duration-150 group-hover:visible group-hover:opacity-100">
+                    <a
+                        href="/tienda"
+                        class="block rounded-lg px-3 py-2 text-sm font-semibold text-primary transition-colors hover:bg-surface-alt"
+                    >Ver todo el catálogo</a>
+
+                    <div class="my-1.5 border-t border-border"></div>
+
+                    <p class="px-3 pt-1 pb-1.5 font-mono text-[10px] tracking-wide text-muted uppercase">Por área</p>
+
+                    {tiendaAreas.map((area) => {
+                        const existe = categoriasExistentes.has(area.slug);
+                        return existe ? (
+                            <a
+                                href={`/tienda/${area.slug}`}
+                                class="block rounded-lg px-3 py-2 text-sm text-foreground transition-colors hover:bg-surface-alt"
+                            >{area.name}</a>
+                        ) : (
+                            <span class="flex items-center justify-between gap-2 rounded-lg px-3 py-2 text-sm text-muted">
+                                {area.name}
+                                <span class="font-mono text-[10px] tracking-wide uppercase">Próximamente</span>
+                            </span>
+                        );
+                    })}
+                </div>
+            </div>
+        ) : (
+            <a
+                class:list={[
+                    "text-sm whitespace-nowrap transition-colors hover:text-green-300",
+                    esActivo(item.href) ? "font-bold text-green-300" : "font-medium",
+                ]}
+                aria-current={esActivo(item.href) ? 'page' : undefined}
+                href={item.href}
+            >{item.name}</a>
+        )
+    ))}
 </nav>

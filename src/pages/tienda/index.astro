@@ -1,16 +1,17 @@
 ---
 import Layout from '@/layouts/Layout.astro';
 import Catalogo from '@/components/product/Catalogo.astro';
-import { getWooCategories, getAllWooProducts } from '@/lib/api';
+import { getAllWooCategories, getAllWooProducts } from '@/lib/api';
 import type { WooCategory, WooProduct } from '@/lib/api';
 
-// Catálogo completo. Las categorías (sidebar) salen reales de WooCommerce, así
-// que al crear una nueva categoría en WP aparece aquí sin tocar código.
-// Con try/catch para degradar con gracia si Woo no responde.
+// Catálogo completo. Las categorías (sidebar) salen reales de WooCommerce —
+// incluidas las vacías, para que se puedan descubrir aunque aún no tengan
+// stock — así que al crear una nueva categoría en WP aparece aquí sin tocar
+// código. Con try/catch para degradar con gracia si Woo no responde.
 let categorias: WooCategory[] = [];
 let products: WooProduct[] = [];
 try {
-    categorias = await getWooCategories();
+    categorias = await getAllWooCategories();
     products = await getAllWooProducts();
 } catch (error) {
     console.error('[tienda] No se pudo cargar el catálogo:', error);

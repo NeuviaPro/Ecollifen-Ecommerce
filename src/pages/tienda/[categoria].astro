@@ -1,16 +1,19 @@
 ---
 import Layout from '@/layouts/Layout.astro';
 import Catalogo from '@/components/product/Catalogo.astro';
-import { getWooCategories, getAllWooProducts } from '@/lib/api';
+import { getAllWooCategories, getAllWooProducts } from '@/lib/api';
 import type { WooCategory, WooProduct } from '@/lib/api';
 
-// Una página estática por cada categoría REAL de WooCommerce. Al crear una
-// categoría nueva en WP (ej. "Sustrato y Suelos"), su página se genera sola.
+// Una página estática por cada categoría REAL de WooCommerce, INCLUIDAS las
+// que aún no tienen productos (getAllWooCategories, no getWooCategories: esa
+// última esconde las vacías, y este archivo daba 404 en categorías nuevas
+// como "Repuestos" o "Raíz Viva" hasta que se detectó el 2026-09-03).
+// Al crear una categoría nueva en WP, su página se genera sola.
 export async function getStaticPaths() {
     // Una sola llamada para todo el catálogo y luego se filtra en memoria: antes
     // era una petición por categoría (23 en total) contra un WordPress lento.
     const [categorias, todos] = await Promise.all([
-        getWooCategories(),
+        getAllWooCategories(),
         getAllWooProducts(),
     ]);
 

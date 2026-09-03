@@ -7,9 +7,30 @@ import CartDrawer from '@/components/cart/CartDrawer';
 import PreciosEnVivo from '@/components/product/PreciosEnVivo.astro';
 
 interface Props {
-	title: string
+	title: string;
+	/** Para Open Graph. Sin esto, un link compartido por WhatsApp no muestra
+	 * nada específico de la página — mismo título/logo para cualquier URL. */
+	description?: string;
+	/** URL absoluta de la imagen de la tarjeta de previsualización. */
+	image?: string;
+	/** "product" en fichas de producto; "website" para el resto (default). */
+	type?: 'website' | 'product';
 }
-const { title } = Astro.props;
+
+const DESCRIPCION_DEFECTO = 'Maquinaria, herramientas, repuestos y sustratos para agricultura, jardinería e invernaderos en el sur de Chile. Asesoría técnica antes de comprar.';
+const IMAGEN_DEFECTO = '/og-default.jpg';
+
+const {
+	title,
+	description = DESCRIPCION_DEFECTO,
+	image = IMAGEN_DEFECTO,
+	type = 'website',
+} = Astro.props;
+
+// Open Graph exige URLs absolutas, no relativas.
+const urlAbsoluta = new URL(Astro.url.pathname, Astro.site);
+const imagenAbsoluta = new URL(image, Astro.site);
+const tituloCompleto = `Ecollifén | ${title}`;
 ---
 
 <!doctype html>
@@ -20,7 +41,26 @@ const { title } = Astro.props;
 		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 		<link rel="icon" href="/favicon.ico" />
 		<meta name="generator" content={Astro.generator} />
-		<title>Ecollifen | { title }</title>
+		<title>{tituloCompleto}</title>
+		<meta name="description" content={description} />
+		<link rel="canonical" href={urlAbsoluta} />
+
+		{/* Open Graph — lo que WhatsApp, Facebook e Instagram leen para armar
+			la tarjeta de previsualización de un link compartido. Sin esto,
+			cualquier link se ve igual (o vacío), sin foto ni nombre del
+			producto: el diferencial de "cerrar por WhatsApp" pierde fuerza. */}
+		<meta property="og:type" content={type} />
+		<meta property="og:site_name" content="Ecollifén" />
+		<meta property="og:title" content={tituloCompleto} />
+		<meta property="og:description" content={description} />
+		<meta property="og:image" content={imagenAbsoluta} />
+		<meta property="og:url" content={urlAbsoluta} />
+		<meta property="og:locale" content="es_CL" />
+
+		<meta name="twitter:card" content="summary_large_image" />
+		<meta name="twitter:title" content={tituloCompleto} />
+		<meta name="twitter:description" content={description} />
+		<meta name="twitter:image" content={imagenAbsoluta} />
 
 		<link rel="preconnect" href="https://fonts.googleapis.com">
 		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
