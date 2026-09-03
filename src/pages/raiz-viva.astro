@@ -1,0 +1,314 @@
+---
+// Página de la línea Raíz Viva — marca propia de Ecollifén para sustratos y
+// compost. Guiada por el diseño "Raiz Viva.dc.html" de Claude Design, con dos
+// ajustes deliberados respecto del mock:
+//
+// 1. El diseño inventaba 4 SKUs (Sustrato, Compost, Humus de lombriz,
+//    Mejorador con biochar). El cliente solo confirmó "sustratos y compost";
+//    humus y mejorador con biochar no existen en ningún documento aprobado.
+//    Se implementan 2 tarjetas reales + un cierre honesto que invita a
+//    consultar, en vez de inventar dos productos más.
+// 2. WooCommerce ya tiene la categoría `raiz-viva` (id 42, sin productos
+//    todavía). Los CTA de compra apuntan ahí, no a /tienda genérico: hoy
+//    mostrará "aún no hay productos" — cierto — y en cuanto se cargue el
+//    primer producto, empieza a funcionar solo.
+import Layout from '@/layouts/Layout.astro';
+import { Image } from 'astro:assets';
+import logoRaizViva from '@/assets/raizViva/raiz-viva.webp';
+import productoAmbiente from '@/assets/raizViva/raiz-viva-producto.webp';
+import productoFrente from '@/assets/raizViva/raiz-viva-producto-frente.webp';
+import { asesoriaHref } from '@/lib/contacto';
+
+const CATEGORIA_HREF = '/tienda/raiz-viva';
+
+const stats = [
+    { valor: '100%', label: 'ORIGEN NATURAL' },
+    { valor: '6 L – 40 L', label: 'FORMATOS' },
+    { valor: 'Todo Chile', label: 'DESPACHO DE LA LÍNEA' },
+    { valor: '6 años', label: 'TRABAJANDO LA TIERRA' },
+];
+
+const bullets = [
+    'Contiene compost, perlita, turba y humus',
+    'Raíces más sanas, plantas con vigor y cosechas abundantes',
+    'Ideal para almácigos, huertos urbanos, hortalizas y trasplantes',
+];
+
+const formatos = ['6 L', '10 L', '20 L', '40 L'];
+
+const pasos = [
+    {
+        n: '01',
+        titulo: 'Prepara el sustrato',
+        desc: 'Suelta la mezcla con las manos y humedécela ligeramente antes de llenar el almacigüero o la maceta.',
+    },
+    {
+        n: '02',
+        titulo: 'Siembra o trasplanta',
+        desc: 'No necesita fertilizante adicional en las primeras semanas: la mezcla ya trae compost y humus.',
+    },
+    {
+        n: '03',
+        titulo: 'Mantén la humedad',
+        desc: 'La perlita mejora el drenaje, así que riega seguido y en poca cantidad hasta el arraigue.',
+    },
+];
+---
+
+<Layout title="Raíz Viva">
+    {/* Hero — fondo Tierra oscuro (earth-700), CTA en Dorado por contraste:
+        un botón Tierra sobre fondo Tierra casi no se distinguiría. */}
+    <section class="overflow-hidden bg-earth-700 text-earth-50">
+        <div class="mx-auto max-w-6xl px-6">
+            <div class="grid items-center gap-14 lg:grid-cols-[1.02fr_0.98fr]">
+                <div class="py-16 md:py-20">
+                    <p class="font-mono text-[11px] font-semibold tracking-[0.18em] text-earth-100">
+                        MARCA PROPIA DE ECOLLIFÉN
+                    </p>
+
+                    <div class="mt-5 size-32 overflow-hidden rounded-2xl bg-earth-50 p-2.5">
+                        <Image src={logoRaizViva} alt="Raíz Viva" class="h-full w-full object-contain" />
+                    </div>
+
+                    <p class="mt-6 max-w-[30ch] font-display text-2xl leading-tight text-earth-100 italic">
+                        Volver al origen, cuidar la raíz.
+                    </p>
+
+                    <p class="mt-6 max-w-lg text-lg leading-relaxed text-earth-50/85">
+                        Nuestra línea de sustratos y compost, desarrollada para quienes buscan
+                        mejorar la tierra de manera natural y sustentable. Formulada por
+                        Ecollifén en el sur de Chile.
+                    </p>
+
+                    <div class="mt-9 flex flex-wrap gap-3">
+                        <a
+                            href={CATEGORIA_HREF}
+                            class="inline-flex items-center justify-center rounded-xl bg-tech px-7 py-4 font-semibold text-tech-contrast transition-transform hover:-translate-y-0.5 hover:bg-gold-200"
+                        >
+                            Comprar Raíz Viva
+                        </a>
+                        <a
+                            href="#linea"
+                            class="inline-flex items-center justify-center rounded-xl border-[1.5px] border-earth-100/45 px-7 py-4 font-semibold text-earth-50 transition-colors hover:border-earth-100 hover:bg-white/10"
+                        >
+                            Ver la línea
+                        </a>
+                    </div>
+                </div>
+
+                <div class="relative min-h-140 self-stretch md:min-h-150">
+                    <Image
+                        src={productoAmbiente}
+                        alt="Sustrato Raíz Viva"
+                        widths={[480, 768, 1024]}
+                        sizes="(min-width: 1024px) 50vw, 100vw"
+                        class="absolute inset-0 h-full w-full object-cover"
+                    />
+                    <div class="absolute inset-0 bg-[linear-gradient(90deg,#4c2411_0%,rgba(76,36,17,.35)_34%,rgba(76,36,17,0)_70%)]"></div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    {/* Banda de cifras — Tierra (rol oficial: Sustrato/Compost) */}
+    <section class="bg-substrate text-earth-50">
+        <div class="mx-auto grid max-w-6xl grid-cols-2 gap-8 px-6 py-7 md:grid-cols-4">
+            {stats.map((stat) => (
+                <div>
+                    <p class="font-display text-2xl font-semibold text-white">{stat.valor}</p>
+                    <p class="mt-1 font-mono text-[11px] tracking-[0.09em] text-earth-100/90">{stat.label}</p>
+                </div>
+            ))}
+        </div>
+    </section>
+
+    {/* La línea */}
+    <section id="linea" class="mx-auto max-w-6xl px-6 pt-16 md:pt-20">
+        <div class="flex flex-col gap-6 border-b border-earth-500/20 pb-5 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+                <p class="font-mono text-[11px] tracking-[0.14em] text-substrate">LA LÍNEA</p>
+                <h2 class="mt-3 font-display text-4xl leading-tight font-semibold tracking-tight text-earth-700">
+                    Sustratos y compost, hechos por Ecollifén
+                </h2>
+            </div>
+            <p class="max-w-[36ch] text-sm leading-relaxed text-muted">
+                Dos líneas para dos momentos del cultivo: partir con el pie derecho, o devolverle
+                vida a un suelo que ya trabajó de más.
+            </p>
+        </div>
+
+        <div class="mt-9 grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3">
+            {/* Sustrato — el único con imagen y copy ya aprobados */}
+            <article class="flex flex-col overflow-hidden rounded-2xl border border-earth-500/20 bg-surface transition-all duration-300 hover:-translate-y-1.5 hover:border-substrate hover:shadow-[0_20px_44px_-24px_rgba(122,59,30,.45)]">
+                <div class="relative aspect-4/3 overflow-hidden border-b border-earth-500/15 bg-white">
+                    <Image src={productoFrente} alt="Sustrato de Inicio Premium Raíz Viva" class="h-full w-full object-cover" />
+                    <span class="absolute top-3 left-3 rounded-md bg-substrate px-2.5 py-1 font-mono text-[10px] tracking-wider text-substrate-contrast uppercase">
+                        Sustrato
+                    </span>
+                </div>
+                <div class="flex flex-1 flex-col p-5">
+                    <h3 class="font-display text-xl font-semibold text-earth-700">Sustrato de Inicio Premium</h3>
+                    <p class="mt-2.5 text-sm leading-relaxed text-muted">
+                        Mezcla lista para siembra con compost, perlita, turba y humus. Para
+                        almácigos, huerto urbano y trasplantes.
+                    </p>
+                    <div class="mt-4 flex flex-wrap gap-1.5">
+                        {formatos.map((f) => (
+                            <span class="rounded-md border border-earth-500/30 px-2.5 py-1 text-xs font-medium text-substrate">{f}</span>
+                        ))}
+                    </div>
+                    <div class="mt-auto flex items-center justify-between gap-3 pt-5">
+                        <span class="font-mono text-[11px] tracking-wide text-muted">Disponible pronto en tienda</span>
+                        <a href={CATEGORIA_HREF} class="text-sm font-semibold text-substrate hover:text-earth-700">Ver →</a>
+                    </div>
+                </div>
+            </article>
+
+            {/* Compost — confirmado por el cliente, sin ficha ni foto todavía:
+                se muestra honesto en vez de inventar formatos o descripción técnica. */}
+            <article class="flex flex-col overflow-hidden rounded-2xl border border-earth-500/20 bg-surface transition-all duration-300 hover:-translate-y-1.5 hover:border-substrate hover:shadow-[0_20px_44px_-24px_rgba(122,59,30,.45)]">
+                <div class="relative aspect-4/3 overflow-hidden border-b border-earth-500/15 bg-[repeating-linear-gradient(135deg,#f6ede7_0_14px,#efe2d8_14px_28px)]">
+                    <span class="absolute top-3 left-3 rounded-md bg-substrate px-2.5 py-1 font-mono text-[10px] tracking-wider text-substrate-contrast uppercase">
+                        Compost
+                    </span>
+                </div>
+                <div class="flex flex-1 flex-col p-5">
+                    <h3 class="font-display text-xl font-semibold text-earth-700">Compost Raíz Viva</h3>
+                    <p class="mt-2.5 text-sm leading-relaxed text-muted">
+                        Materia orgánica para devolverle vida a un suelo cansado. En preparación
+                        junto al resto de la línea.
+                    </p>
+                    <div class="mt-auto flex items-center justify-between gap-3 pt-5">
+                        <span class="font-mono text-[11px] tracking-wide text-muted">En preparación</span>
+                        <a href="/contacto" class="text-sm font-semibold text-substrate hover:text-earth-700">Consultar →</a>
+                    </div>
+                </div>
+            </article>
+
+            {/* Cierre honesto en vez de dos SKUs inventados (humus, mejorador con
+                biochar): invita a preguntar por lo que de verdad se necesita. */}
+            <article class="flex flex-col items-start justify-center rounded-2xl border-2 border-dashed border-earth-500/30 bg-earth-50/60 p-6">
+                <h3 class="font-display text-lg font-semibold text-earth-700">¿Buscas otra referencia?</h3>
+                <p class="mt-2 text-sm leading-relaxed text-muted">
+                    La línea sigue creciendo. Cuéntanos qué necesita tu suelo o tu cultivo y te
+                    decimos qué estamos preparando para eso.
+                </p>
+                <a
+                    href={asesoriaHref()}
+                    class="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-substrate hover:text-earth-700"
+                >
+                    Solicitar asesoría
+                    <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+                </a>
+            </article>
+        </div>
+    </section>
+
+    {/* Producto estrella — mismo copy aprobado que ProductoEstrella.astro,
+        con imagen a la izquierda (así lo pide el diseño para esta página). */}
+    <section class="mx-auto max-w-6xl px-6 pt-16 md:pt-20">
+        <div class="grid items-center gap-12 overflow-hidden rounded-3xl border border-earth-500/20 bg-surface lg:grid-cols-[1fr_1.1fr]">
+            <div class="relative min-h-105 self-stretch bg-earth-100">
+                <Image
+                    src={productoFrente}
+                    alt="Saco de sustrato Raíz Viva de frente"
+                    widths={[480, 768, 1024]}
+                    sizes="(min-width: 1024px) 45vw, 100vw"
+                    class="absolute inset-0 h-full w-full object-cover"
+                />
+            </div>
+
+            <div class="p-8 pr-8 md:p-12 md:pr-12 lg:pl-0">
+                <p class="font-mono text-[11px] tracking-[0.14em] text-substrate">PRODUCTO ESTRELLA</p>
+                <h2 class="mt-3 max-w-[22ch] font-display text-3xl leading-tight font-semibold text-balance text-earth-700 md:text-4xl">
+                    Sustrato completo de inicio premium
+                </h2>
+                <p class="mt-4 max-w-prose text-muted">
+                    Mezcla lista para siembra: sustrato premium que devuelve vida al suelo y da
+                    resultados visibles desde el primer cultivo.
+                </p>
+
+                <ul class="mt-6 flex flex-col gap-2.5">
+                    {bullets.map((bullet) => (
+                        <li class="flex items-start gap-2.5 text-sm text-foreground">
+                            <span class="mt-1 text-substrate">◆</span>
+                            {bullet}
+                        </li>
+                    ))}
+                </ul>
+
+                <div class="mt-7">
+                    <span class="block font-mono text-xs tracking-wide text-muted">FORMATOS</span>
+                    <div class="mt-2 flex flex-wrap gap-2">
+                        {formatos.map((f) => (
+                            <span class="rounded-md border border-earth-500/30 px-2.5 py-1.5 text-sm font-medium text-substrate transition-colors hover:bg-earth-50">{f}</span>
+                        ))}
+                    </div>
+                </div>
+
+                <div class="mt-8 flex flex-wrap gap-3">
+                    <a
+                        href={CATEGORIA_HREF}
+                        class="inline-flex items-center justify-center rounded-xl bg-substrate px-6 py-3.5 font-semibold text-substrate-contrast transition-colors hover:bg-earth-600"
+                    >
+                        Comprar Raíz Viva
+                    </a>
+                    <a
+                        href="/contacto"
+                        class="inline-flex items-center justify-center rounded-xl border-[1.5px] border-earth-500/35 px-6 py-3.5 font-semibold text-substrate transition-colors hover:bg-earth-50"
+                    >
+                        Ficha técnica
+                    </a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    {/* Cómo usarlo — guía general de siembra, no una promesa sobre un producto
+        específico: bajo riesgo aunque el catálogo aún no tenga stock. */}
+    <section class="mx-auto max-w-6xl px-6 pt-16 md:pt-20">
+        <p class="font-mono text-[11px] tracking-[0.14em] text-substrate">CÓMO USARLO</p>
+        <h2 class="mt-3 font-display text-4xl leading-tight font-semibold text-earth-700">
+            Tres pasos, cualquier cultivo
+        </h2>
+
+        <div class="mt-9 grid grid-cols-1 gap-6 sm:grid-cols-3">
+            {pasos.map((paso) => (
+                <div class="border-t-2 border-substrate pt-5">
+                    <span class="font-display text-4xl leading-none font-semibold text-earth-500/30">{paso.n}</span>
+                    <h3 class="mt-3 font-display text-lg font-semibold text-earth-700">{paso.titulo}</h3>
+                    <p class="mt-2.5 text-sm leading-relaxed text-muted">{paso.desc}</p>
+                </div>
+            ))}
+        </div>
+    </section>
+
+    {/* Cierre */}
+    <section class="mx-auto max-w-6xl px-6 pt-16 pb-20 md:pt-20">
+        <div class="grid items-center gap-10 rounded-3xl bg-earth-700 p-10 text-earth-50 md:grid-cols-2 md:p-13">
+            <div>
+                <h2 class="max-w-[20ch] font-display text-3xl leading-tight font-semibold text-balance text-white">
+                    ¿No sabes qué sustrato necesita tu cultivo?
+                </h2>
+                <p class="mt-3.5 max-w-md text-earth-100/90">
+                    Cuéntanos qué vas a plantar, en qué formato y dónde estás. Te decimos qué de
+                    la línea corresponde.
+                </p>
+            </div>
+            <div class="flex flex-wrap gap-3 md:justify-end">
+                <a
+                    href={asesoriaHref()}
+                    class="inline-flex items-center justify-center rounded-xl bg-tech px-7 py-4 font-semibold text-tech-contrast transition-transform hover:-translate-y-0.5 hover:bg-gold-200"
+                >
+                    Solicitar asesoría
+                </a>
+                <a
+                    href={CATEGORIA_HREF}
+                    class="inline-flex items-center justify-center rounded-xl border-[1.5px] border-earth-100/45 px-7 py-4 font-semibold text-earth-50 transition-colors hover:border-earth-100 hover:bg-white/10"
+                >
+                    Ir a la tienda
+                </a>
+            </div>
+        </div>
+    </section>
+</Layout>

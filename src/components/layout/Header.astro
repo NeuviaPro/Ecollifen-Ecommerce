@@ -4,6 +4,7 @@ import MainNav from "./MainNav.astro";
 import Logo from '@/assets/ecollifenLogo.png';
 import { navigation } from '@/lib/navigation';
 import CartBadge from '@/components/cart/CartBadge';
+import Buscador from '@/components/search/Buscador.astro';
 import { asesoriaHref } from '@/lib/contacto';
 
 // Nota: el inicio de sesión de clientes queda FUERA de este primer alcance,
@@ -43,18 +44,8 @@ import { asesoriaHref } from '@/lib/contacto';
             <MainNav class="hidden lg:flex justify-around" />
 
             <div class="ml-auto flex items-center gap-1 sm:gap-2">
-                {/* Buscador (solo escritorio) */}
-                <label class="hidden items-center gap-2 rounded-lg bg-white/10 px-3 py-1.5 md:flex">
-                    <svg class="size-4 text-green-200" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
-                        <circle cx="11" cy="11" r="7"></circle>
-                        <path d="m20 20-3-3"></path>
-                    </svg>
-                    <input
-                        type="search"
-                        placeholder="Buscar productos…"
-                        class="w-40 bg-transparent text-sm text-white placeholder:text-green-200 focus:outline-none"
-                    />
-                </label>
+                {/* Buscador de escritorio; en móvil va dentro del drawer */}
+                <Buscador class="hidden md:block" />
 
                 {/* Carrito — abre el drawer */}
                 <button type="button" data-cart-toggle aria-label="Abrir carrito" class="relative flex items-center gap-2 rounded-lg p-2.5 transition-colors hover:bg-white/10">
@@ -110,6 +101,11 @@ import { asesoriaHref } from '@/lib/contacto';
                         <path d="M6 6l12 12M18 6 6 18"></path>
                     </svg>
                 </button>
+            </div>
+
+            {/* Buscador móvil: hasta ahora el teléfono no tenía forma de buscar */}
+            <div class="border-b border-white/10 p-4">
+                <Buscador variante="panel" />
             </div>
 
             <nav class="flex flex-col p-2">

@@ -1,0 +1,217 @@
+---
+// Buscador de productos con resultados instantáneos.
+//
+// Descarga /buscador.json la primera vez que alguien escribe y desde ahí filtra
+// en memoria: sin esperas, sin pegarle a WordPress en cada tecla.
+//
+// Se usa dos veces (escritorio y menú móvil), por eso todo el estado vive en el
+// DOM y el script busca CADA instancia, no la primera.
+interface Props {
+    /** "header" = compacto sobre el verde; "panel" = ancho, dentro del drawer. */
+    variante?: 'header' | 'panel';
+    class?: string;
+}
+
+const { variante = 'header', class: clase } = Astro.props;
+const esHeader = variante === 'header';
+---
+
+<div
+    class:list={["relative", clase]}
+    data-buscador
+>
+    <form action="/busqueda" method="get" role="search">
+        <label
+            class:list={[
+                "flex items-center gap-2 rounded-lg",
+                esHeader ? "bg-white/10 px-3 py-1.5" : "border border-white/20 bg-white/10 px-3 py-2.5",
+            ]}
+        >
+            <svg class="size-4 shrink-0 text-green-200" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+                <circle cx="11" cy="11" r="7"></circle>
+                <path d="m20 20-3-3"></path>
+            </svg>
+            <input
+                type="search"
+                name="q"
+                autocomplete="off"
+                placeholder="Buscar productos…"
+                aria-label="Buscar productos"
+                data-buscador-input
+                class:list={[
+                    "bg-transparent text-sm text-white placeholder:text-green-200 focus:outline-none",
+                    esHeader ? "w-40" : "w-full",
+                ]}
+            />
+            <button
+                type="button"
+                data-buscador-limpiar
+                hidden
+                aria-label="Limpiar búsqueda"
+                class="shrink-0 rounded-full p-0.5 text-green-200 transition-colors hover:text-white"
+            >
+                <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+                    <path d="M6 6l12 12M18 6 6 18"></path>
+                </svg>
+            </button>
+        </label>
+    </form>
+
+    {/* Panel de resultados. En escritorio flota sobre la página; dentro del
+        drawer se despliega en el flujo para no salirse de la pantalla. */}
+    <div
+        data-buscador-panel
+        hidden
+        class:list={[
+            "z-50 overflow-hidden rounded-xl border border-border bg-surface text-foreground shadow-xl",
+            esHeader ? "absolute top-full right-0 mt-2 w-96 max-w-[90vw]" : "relative mt-2 w-full",
+        ]}
+    >
+        <ul data-buscador-resultados class="max-h-96 divide-y divide-border overflow-y-auto"></ul>
+
+        <div data-buscador-vacio hidden class="px-4 py-6 text-center">
+            <p class="text-sm text-muted">Sin resultados para <span data-buscador-eco class="font-medium text-foreground"></span>.</p>
+            <a href="/contacto" class="mt-2 inline-block text-sm font-semibold text-isotipo hover:text-primary">
+                Pídelo por asesoría →
+            </a>
+        </div>
+
+        <a
+            data-buscador-todos
+            hidden
+            href="/busqueda"
+            class="block border-t border-border bg-surface-alt px-4 py-3 text-center text-sm font-semibold text-primary transition-colors hover:bg-border/40"
+        ></a>
+    </div>
+</div>
+
+<script>
+    import { buscar, formatoPrecio, type ItemIndice } from '@/lib/buscador';
+
+    const MAXIMO_VISIBLE = 6;
+
+    // El índice se comparte entre las instancias del buscador y se descarga una
+    // sola vez por visita.
+    let indice: ItemIndice[] | null = null;
+    let cargando: Promise<ItemIndice[]> | null = null;
+
+    async function obtenerIndice(): Promise<ItemIndice[]> {
+        if (indice) return indice;
+
+        if (!cargando) {
+            cargando = fetch('/buscador.json')
+                .then((res) => (res.ok ? res.json() : []))
+                .then((datos: ItemIndice[]) => (indice = datos))
+                .catch((error) => {
+                    console.error('[buscador] No se pudo cargar el índice:', error);
+                    return [];
+                });
+        }
+
+        return cargando;
+    }
+
+    function tarjeta(item: ItemIndice): string {
+        const imagen = item.imagen
+            ? `<img src="${item.imagen}" alt="" loading="lazy" class="h-full w-full object-contain" />`
+            : '';
+
+        const agotado = item.stock !== 'instock'
+            ? '<span class="font-mono text-[10px] text-muted">SIN STOCK</span>'
+            : '';
+
+        return `
+            <li>
+                <a href="/producto/${item.id}" class="flex items-center gap-3 px-3 py-2.5 transition-colors hover:bg-surface-alt">
+                    <span class="flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border bg-white p-1">${imagen}</span>
+                    <span class="flex min-w-0 flex-1 flex-col">
+                        <span class="truncate text-sm font-medium text-foreground">${item.nombre}</span>
+                        <span class="truncate font-mono text-[10px] tracking-wide text-muted">${item.categoria}</span>
+                    </span>
+                    <span class="flex shrink-0 flex-col items-end gap-0.5">
+                        <span class="text-sm font-semibold text-green-700 tabular-nums">${formatoPrecio(item.precio)}</span>
+                        ${agotado}
+                    </span>
+                </a>
+            </li>
+        `;
+    }
+
+    function iniciar(raiz: HTMLElement) {
+        const input = raiz.querySelector<HTMLInputElement>('[data-buscador-input]');
+        const panel = raiz.querySelector<HTMLElement>('[data-buscador-panel]');
+        const lista = raiz.querySelector<HTMLElement>('[data-buscador-resultados]');
+        const vacio = raiz.querySelector<HTMLElement>('[data-buscador-vacio]');
+        const eco = raiz.querySelector<HTMLElement>('[data-buscador-eco]');
+        const verTodos = raiz.querySelector<HTMLAnchorElement>('[data-buscador-todos]');
+        const limpiar = raiz.querySelector<HTMLElement>('[data-buscador-limpiar]');
+
+        if (!input || !panel || !lista || !vacio || !verTodos || !limpiar) return;
+
+        let temporizador = 0;
+
+        function cerrar() {
+            panel!.hidden = true;
+        }
+
+        async function render() {
+            const consulta = input!.value.trim();
+            limpiar!.hidden = consulta.length === 0;
+
+            if (consulta.length < 2) {
+                cerrar();
+                return;
+            }
+
+            const datos = await obtenerIndice();
+            const encontrados = buscar(datos, consulta);
+            const visibles = encontrados.slice(0, MAXIMO_VISIBLE);
+
+            lista!.innerHTML = visibles.map(tarjeta).join('');
+            vacio!.hidden = encontrados.length > 0;
+            if (eco) eco.textContent = `"${consulta}"`;
+
+            // El enlace a la página completa solo aparece si hay más de los que caben.
+            const sobran = encontrados.length - visibles.length;
+            verTodos!.hidden = sobran <= 0;
+            verTodos!.href = `/busqueda?q=${encodeURIComponent(consulta)}`;
+            verTodos!.textContent = `Ver los ${encontrados.length} resultados →`;
+
+            panel!.hidden = false;
+        }
+
+        // El índice se precarga al enfocar: cuando termina la primera palabra ya
+        // está listo y los resultados salen sin esperar.
+        input.addEventListener('focus', () => { obtenerIndice(); });
+
+        input.addEventListener('input', () => {
+            window.clearTimeout(temporizador);
+            temporizador = window.setTimeout(render, 120);
+        });
+
+        input.addEventListener('keydown', (evento) => {
+            if (evento.key === 'Escape') {
+                cerrar();
+                input.blur();
+            }
+        });
+
+        limpiar.addEventListener('click', () => {
+            input.value = '';
+            limpiar.hidden = true;
+            cerrar();
+            input.focus();
+        });
+
+        // Cerrar al hacer clic fuera del buscador.
+        document.addEventListener('click', (evento) => {
+            if (evento.target instanceof Node && !raiz.contains(evento.target)) cerrar();
+        });
+    }
+
+    function iniciarTodos() {
+        document.querySelectorAll<HTMLElement>('[data-buscador]').forEach(iniciar);
+    }
+
+    document.addEventListener('astro:page-load', iniciarTodos);
+</script>

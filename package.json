@@ -10,8 +10,7 @@
         "build": "cross-env NODE_OPTIONS=--use-system-ca astro build",
         "preview": "cross-env NODE_OPTIONS=--use-system-ca astro preview",
         "astro": "astro",
-        "deploy": "npm run build && node --env-file=.env scripts/deploy.mjs",
-        "deploy:solo": "node --env-file=.env scripts/deploy.mjs"
+        "deploy": "bash deploy.sh"
     },
     "dependencies": {
         "@astrojs/preact": "^6.0.2",
@@ -26,7 +25,6 @@
     },
     "devDependencies": {
         "@astrojs/check": "^0.9.9",
-        "basic-ftp": "^6.2.0",
         "cross-env": "^10.1.0",
         "typescript": "^6.0.3"
     }

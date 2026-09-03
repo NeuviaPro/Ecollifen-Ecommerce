@@ -86,6 +86,9 @@ export interface WooProduct {
     categories: { id: number, name: string, slug: string }[];
     // Datos para la ficha técnica. Hoy los productos no traen atributos
     // cargados en Woo, por eso son opcionales: la tabla se muestra solo si hay.
+    // Etiquetas de producto: hoy ningún producto tiene, pero el índice del
+    // buscador ya las usa — en cuanto se carguen en Woo, mejora sin tocar código.
+    tags?: { id: number, name: string, slug: string }[];
     attributes?: { name: string, options: string[], visible: boolean }[];
     weight?: string;
     dimensions?: { length: string, width: string, height: string };

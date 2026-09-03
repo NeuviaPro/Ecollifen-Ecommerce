@@ -9,6 +9,9 @@ export type NavItem = {
 export const navigation: NavItem[] = [
     { name: "Inicio", href: "/" },
     { name: "Tienda", href: "/tienda" },
+    // Marca propia — va junto a Tienda porque es donde se compra, no una
+    // página institucional; separada de "Servicio Técnico" y "Nosotros".
+    { name: "Raíz Viva", href: "/raiz-viva" },
     { name: "Servicio Técnico", href: "/servicio-tecnico" },
     { name: "Nosotros", href: "/nosotros" },
     { name: "Contacto", href: "/contacto" },

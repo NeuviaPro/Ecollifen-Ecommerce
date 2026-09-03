@@ -1,0 +1,134 @@
+---
+// Resultados de búsqueda.
+//
+// La página se genera con TODO el catálogo ya renderizado y oculto; el script
+// lee ?q= y muestra solo lo que coincide, en orden de relevancia. Es el mismo
+// patrón del catálogo (/tienda) y tiene dos ventajas: reutiliza la tarjeta de
+// producto tal cual, y los precios en vivo siguen funcionando sin nada extra.
+import Layout from '@/layouts/Layout.astro';
+import ProductCard from '@/components/product/ProductCard.astro';
+import { getAllWooProducts } from '@/lib/api';
+import type { WooProduct } from '@/lib/api';
+
+let productos: WooProduct[] = [];
+try {
+    productos = await getAllWooProducts();
+} catch (error) {
+    console.error('[busqueda] No se pudo cargar el catálogo:', error);
+}
+---
+
+<Layout title="Búsqueda">
+    <div class="mx-auto max-w-6xl px-6 py-10">
+        <nav class="font-mono text-xs text-muted">
+            <a href="/" class="hover:text-primary">Inicio</a> /
+            <a href="/tienda" class="hover:text-primary">Tienda</a> /
+            <span class="text-foreground">Búsqueda</span>
+        </nav>
+
+        <h1 class="mt-4 font-display text-4xl font-semibold text-primary">
+            Resultados de búsqueda
+        </h1>
+
+        {/* Buscar de nuevo sin volver al header */}
+        <form action="/busqueda" method="get" role="search" class="mt-6 flex max-w-xl gap-2">
+            <label class="flex flex-1 items-center gap-2 rounded-lg border border-border bg-white px-3.5 py-2.5 focus-within:border-ring">
+                <svg class="size-4 shrink-0 text-muted" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+                    <circle cx="11" cy="11" r="7"></circle>
+                    <path d="m20 20-3-3"></path>
+                </svg>
+                <input
+                    type="search"
+                    name="q"
+                    data-busqueda-input
+                    placeholder="Buscar productos…"
+                    aria-label="Buscar productos"
+                    class="w-full bg-transparent text-sm text-foreground placeholder:text-muted focus:outline-none"
+                />
+            </label>
+            <button
+                type="submit"
+                class="rounded-lg bg-cta px-5 py-2.5 font-semibold text-cta-contrast transition-colors hover:bg-green-600"
+            >Buscar</button>
+        </form>
+
+        <p data-busqueda-resumen class="mt-6 text-sm text-muted"></p>
+
+        {/* Todo el catálogo, oculto hasta que el script decida qué mostrar */}
+        <div data-busqueda-grid class="mt-6 grid grid-cols-2 gap-5 lg:grid-cols-3">
+            {productos.map((product) => (
+                <div data-resultado={product.id} hidden>
+                    <ProductCard product={product} />
+                </div>
+            ))}
+        </div>
+
+        <div data-busqueda-vacio hidden class="mt-6 rounded-2xl border border-border bg-surface p-8 text-center">
+            <h2 class="font-display text-xl font-semibold text-primary">
+                No encontramos ese producto
+            </h2>
+            <p class="mx-auto mt-2 max-w-md text-sm leading-relaxed text-muted">
+                Prueba con menos palabras o con el nombre de la categoría.
+                Si es algo puntual que no está en el catálogo, te lo conseguimos.
+            </p>
+            <div class="mt-6 flex flex-col justify-center gap-3 sm:flex-row">
+                <a href="/tienda" class="rounded-lg bg-cta px-6 py-3 font-semibold text-cta-contrast transition-colors hover:bg-green-600">
+                    Ver todo el catálogo
+                </a>
+                <a href="/contacto" class="rounded-lg border-[1.5px] border-border px-6 py-3 font-semibold text-primary transition-colors hover:bg-surface-alt">
+                    Pedir por asesoría
+                </a>
+            </div>
+        </div>
+    </div>
+</Layout>
+
+<script>
+    import { buscar, type ItemIndice } from '@/lib/buscador';
+
+    async function initBusqueda() {
+        const grid = document.querySelector<HTMLElement>('[data-busqueda-grid]');
+        const resumen = document.querySelector<HTMLElement>('[data-busqueda-resumen]');
+        const vacio = document.querySelector<HTMLElement>('[data-busqueda-vacio]');
+        const input = document.querySelector<HTMLInputElement>('[data-busqueda-input]');
+
+        if (!grid || !resumen || !vacio) return;
+
+        const consulta = (new URLSearchParams(window.location.search).get('q') ?? '').trim();
+        if (input) input.value = consulta;
+
+        const tarjetas = Array.from(grid.querySelectorAll<HTMLElement>('[data-resultado]'));
+        const porId = new Map(tarjetas.map((el) => [el.dataset.resultado, el]));
+
+        // Sin término de búsqueda no se muestra el catálogo entero: para eso
+        // está /tienda, que además trae filtros.
+        if (consulta.length === 0) {
+            resumen.textContent = 'Escribe qué necesitas para buscar en el catálogo.';
+            return;
+        }
+
+        let indice: ItemIndice[] = [];
+        try {
+            const res = await fetch('/buscador.json');
+            if (res.ok) indice = await res.json();
+        } catch (error) {
+            console.error('[busqueda] No se pudo cargar el índice:', error);
+        }
+
+        const encontrados = buscar(indice, consulta);
+
+        // Se reordena el DOM según relevancia y se muestran solo los que calzan.
+        encontrados.forEach((item) => {
+            const el = porId.get(String(item.id));
+            if (!el) return;
+            el.hidden = false;
+            grid.appendChild(el);
+        });
+
+        const plural = encontrados.length === 1 ? 'resultado' : 'resultados';
+        resumen.innerHTML = `<strong class="font-semibold text-foreground">${encontrados.length}</strong> ${plural} para “${consulta.replace(/</g, '&lt;')}”`;
+        vacio.hidden = encontrados.length > 0;
+    }
+
+    document.addEventListener('astro:page-load', initBusqueda);
+</script>
