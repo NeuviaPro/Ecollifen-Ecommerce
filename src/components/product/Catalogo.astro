@@ -1,8 +1,20 @@
 ---
 // Layout de catálogo, compartido por /tienda (general) y /tienda/[categoria].
-// Orden, filtro de stock y paginación funcionan en el cliente (ver <script>).
+// Orden, filtro de stock, precio, paginación y vista rápida funcionan en el
+// cliente (ver <script>). Rediseño guiado por Claude Design ("Tienda.dc.html"),
+// con dos ajustes deliberados sobre el mock:
+//   1. La grilla de productos fuerza 3 columnas en escritorio (lg:grid-cols-3)
+//      en vez del auto-fill/minmax del diseño, que en este ancho de página
+//      solo alcanza a mostrar 2.
+//   2. La categoría sigue siendo NAVEGACIÓN a una página estática por
+//      categoría (como ya funcionaba), no estado reactivo de una sola página
+//      con todo el catálogo cargado — eso es a propósito (SEO, páginas
+//      livianas) y el diseño no lo contempla.
 import ProductCard from '@/components/product/ProductCard.astro';
+import { Image } from 'astro:assets';
 import type { WooProduct, WooCategory } from '@/lib/api';
+import type { ImageMetadata } from 'astro';
+import raizVivaImg from '@/assets/raizViva/raiz-viva-producto-frente.webp';
 
 interface Props {
     title: string;
@@ -11,9 +23,10 @@ interface Props {
     currentSlug?: string;    // slug de la categoría activa (undefined = /tienda general)
     badge?: string;          // etiqueta de categoría para las tarjetas
     totalCatalogo?: number;  // total del catálogo, para el contador de "Todas las categorías"
+    description?: string;    // bajada bajo el título de la banda superior
 }
 
-const { title, products, categorias, currentSlug, badge, totalCatalogo } = Astro.props;
+const { title, products, categorias, currentSlug, badge, totalCatalogo, description } = Astro.props;
 
 // El sidebar agrupa las subcategorías dentro de su padre y las despliega en un
 // acordeón: con 23 categorías, listarlas planas llenaba la pantalla completa
@@ -39,239 +52,452 @@ const money = new Intl.NumberFormat('es-CL', {
     currency: 'CLP',
     maximumFractionDigits: 0,
 });
+
+// Bajada por defecto si la página no manda una propia (la categoría de Woo no
+// siempre tiene descripción cargada).
+const bajada = description || (
+    currentSlug
+        ? `Explora nuestra selección de ${title.toLowerCase()}, con precio y stock reales.`
+        : 'Catálogo completo de agricultura, jardinería, invernaderos, cosecha y herramientas. Si dudas entre dos opciones, te asesoramos antes de que compres.'
+);
+
+// Tira de 3 vitrinas en la banda superior — solo en /tienda general, no
+// repetida dentro de una categoría específica donde ya estás navegando.
+// Mismo criterio que Vitrinas.astro: solo se muestra lo que existe de verdad.
+const fotosVitrinas = import.meta.glob<{ default: ImageMetadata }>(
+    '/src/assets/vitrinas/*.{webp,jpg,jpeg,png}',
+    { eager: true },
+);
+
+const AREAS_VITRINA = [
+    { slug: 'jardineria', titulo: 'Jardinería' },
+    { slug: 'herramientas-a-bateria', titulo: 'A batería' },
+    { slug: 'motobombas-bombas', titulo: 'Riego y bombas' },
+];
+
+const vitrinas = currentSlug ? [] : AREAS_VITRINA
+    .map((area) => {
+        const categoria = categorias.find((c) => c.slug === area.slug);
+        if (!categoria) return null;
+        const clave = Object.keys(fotosVitrinas).find((k) => k.includes(`/vitrinas/${area.slug}.`));
+        if (!clave) return null;
+        return { ...area, img: fotosVitrinas[clave]!.default };
+    })
+    .filter((v): v is NonNullable<typeof v> => v !== null);
 ---
 
-<div class="mx-auto max-w-6xl px-6 py-10">
-    <nav class="font-mono text-xs text-muted">
-        <a href="/" class="hover:text-primary">Inicio</a> /
-        {currentSlug ? (
-            <span><a href="/tienda" class="hover:text-primary">Tienda</a> / <span class="text-foreground">{title}</span></span>
-        ) : (
-            <span class="text-foreground">Tienda</span>
-        )}
-    </nav>
+<section class="bg-primary text-primary-contrast">
+    <div class="mx-auto max-w-6xl px-6 pt-11 pb-13">
+        <nav class="font-mono text-xs text-green-300">
+            <a href="/" class="transition-colors hover:text-white">Inicio</a> /
+            {currentSlug ? (
+                <span><a href="/tienda" class="transition-colors hover:text-white">Tienda</a> / <span class="text-white">{title}</span></span>
+            ) : (
+                <span class="text-white">Tienda</span>
+            )}
+        </nav>
 
-    <div class="mt-4 flex items-baseline justify-between gap-4">
-        <h1 class="font-display text-4xl font-semibold text-primary">{title}</h1>
-        <span data-count class="font-mono text-sm whitespace-nowrap text-muted">{products.length} productos</span>
-    </div>
+        <div class:list={["mt-4 grid gap-10 lg:items-end", vitrinas.length > 0 ? "lg:grid-cols-[1.05fr_1fr] lg:gap-12" : ""]}>
+            <div>
+                <h1 class="font-display text-4xl leading-[1.05] font-semibold text-balance text-white md:text-5xl">
+                    {currentSlug ? title : 'Todo para trabajar la tierra'}
+                </h1>
+                <p class="mt-4 max-w-[46ch] text-[17px] leading-relaxed text-green-100/90">
+                    {bajada}
+                </p>
+            </div>
 
-    <div class="mt-6 flex items-center justify-between gap-4 border-b border-border pb-4">
-        <button
-            type="button"
-            data-filtros-open
-            class="flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-surface-alt lg:hidden"
-        >
-            <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M3 5h18M6 12h12M10 19h4"></path></svg>
-            Filtrar
-        </button>
-        <label class="ml-auto flex items-center gap-2 text-sm text-muted">
-            <span class="font-mono text-xs tracking-wide">ORDENAR</span>
-            <select data-sort class="rounded-lg border border-border bg-surface px-3 py-2 text-foreground focus:border-ring focus:outline-none">
-                <option value="relevancia">Relevancia</option>
-                <option value="precio-asc">Precio: menor a mayor</option>
-                <option value="precio-desc">Precio: mayor a menor</option>
-                <option value="nuevos">Más nuevos</option>
-            </select>
-        </label>
-    </div>
-
-    <div class="mt-6 grid gap-8 lg:grid-cols-[240px_1fr]">
-        {/* Overlay del drawer de filtros (solo móvil) */}
-        <div data-filtros-overlay class="fixed inset-0 z-40 bg-black/50 opacity-0 pointer-events-none transition-opacity lg:hidden"></div>
-
-        {/* En móvil: drawer deslizante. En escritorio: sidebar estático. */}
-        <aside
-            data-filtros
-            class="fixed inset-y-0 right-0 z-50 w-80 max-w-[85vw] translate-x-full overflow-y-auto bg-background p-4 transition-transform lg:static lg:z-auto lg:w-auto lg:max-w-none lg:translate-x-0 lg:overflow-visible lg:bg-transparent lg:p-0"
-        >
-            <div class="rounded-2xl border border-border bg-surface p-5">
-                <div class="mb-4 flex items-center justify-between lg:hidden">
-                    <span class="font-display text-lg font-semibold text-primary">Filtros</span>
-                    <button type="button" data-filtros-close aria-label="Cerrar filtros" class="rounded-lg p-1.5 transition-colors hover:bg-surface-alt">
-                        <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg>
-                    </button>
-                </div>
-                <h2 class="font-mono text-xs tracking-wide text-muted">CATEGORÍA</h2>
-                <ul class="mt-3 flex flex-col gap-1">
-                    <li>
+            {vitrinas.length > 0 && (
+                <div class="grid grid-cols-3 gap-3.5">
+                    {vitrinas.map((v) => (
                         <a
-                            href="/tienda"
-                            class:list={[
-                                "flex items-center justify-between rounded-lg px-2.5 py-1.5 text-sm transition-colors hover:bg-surface-alt",
-                                !currentSlug ? "font-semibold text-primary" : "text-foreground",
-                            ]}
+                            href={`/tienda/${v.slug}`}
+                            class="group relative block aspect-3/4 overflow-hidden rounded-xl bg-green-800 transition-transform duration-300 hover:-translate-y-1.5"
                         >
-                            <span>Todas las categorías</span>
-                            {totalCatalogo !== undefined && (
-                                <span class="font-mono text-xs text-muted">{totalCatalogo}</span>
-                            )}
+                            <Image
+                                src={v.img}
+                                alt={v.titulo}
+                                widths={[240, 360]}
+                                sizes="(min-width: 1024px) 12vw, 30vw"
+                                class="absolute inset-0 h-full w-full object-cover opacity-85 transition-all duration-500 group-hover:scale-105 group-hover:opacity-100"
+                            />
+                            <div class="absolute inset-0 bg-[linear-gradient(to_top,rgba(11,36,19,.88),rgba(11,36,19,0)_62%)]"></div>
+                            <span class="absolute inset-x-2.5 bottom-2.5 font-mono text-[11px] tracking-[0.08em] text-white uppercase">
+                                {v.titulo}
+                            </span>
                         </a>
-                    </li>
-                    {padres.map((padre) => {
-                        const hijos = hijosDe(padre.id);
+                    ))}
+                </div>
+            )}
+        </div>
+    </div>
+</section>
 
-                        // Sin subcategorías: enlace directo, sin acordeón que abrir.
-                        if (hijos.length === 0) return (
-                            <li>
-                                <a
-                                    href={`/tienda/${padre.slug}`}
-                                    class:list={[
-                                        "flex items-center justify-between rounded-lg px-2.5 py-1.5 text-sm transition-colors hover:bg-surface-alt",
-                                        padre.slug === currentSlug ? "font-semibold text-primary" : "text-foreground",
-                                    ]}
-                                >
-                                    <span>{padre.name}</span>
-                                    <span class="font-mono text-xs text-muted">{padre.count}</span>
-                                </a>
-                            </li>
-                        );
+{/* Fondo radial suave sobre el crema — un lavado tenue de Verde Agro arriba y
+    Dorado abajo, para que la zona del catálogo no se sienta un plano de un
+    solo color. Nunca sustituye el fondo base: es una capa encima. */}
+<div class="tienda-fondo">
+    <div class="mx-auto max-w-6xl px-6 pt-8 pb-14">
+        <div class="flex items-center justify-between gap-4">
+            <div class="flex items-baseline gap-3">
+                <span class="font-mono text-xs text-muted" data-count>{products.length} {products.length === 1 ? 'producto' : 'productos'}</span>
+            </div>
+            <div class="flex items-center gap-3">
+                <button
+                    type="button"
+                    data-filtros-open
+                    class="flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-surface-alt lg:hidden"
+                >
+                    <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M3 5h18M6 12h12M10 19h4"></path></svg>
+                    Filtrar
+                </button>
+                <label class="flex items-center gap-2 text-sm text-muted">
+                    <span class="font-mono text-xs tracking-wide">ORDENAR</span>
+                    <select data-sort class="rounded-lg border border-border bg-surface px-3 py-2 text-foreground focus:border-ring focus:outline-none">
+                        <option value="relevancia">Relevancia</option>
+                        <option value="precio-asc">Precio: menor a mayor</option>
+                        <option value="precio-desc">Precio: mayor a menor</option>
+                        <option value="nuevos">Más nuevos</option>
+                    </select>
+                </label>
+            </div>
+        </div>
 
-                        // Con subcategorías: <details> nativo, ya accesible y sin JS.
-                        // Se abre solo si estás dentro de esa rama.
-                        const activoDentro = padre.slug === currentSlug || hijos.some((h) => h.slug === currentSlug);
+        {/* Chips de filtros activos. El de categoría (si aplica) es un link
+            fijo servido desde el servidor; el resto lo construye el script
+            según el estado de precio/stock. */}
+        <div data-chips class="mt-4 flex flex-wrap items-center gap-2 empty:hidden">
+            <span data-chips-label class="mr-0.5 font-mono text-[11px] tracking-[0.08em] text-muted hidden">FILTROS</span>
+            {currentSlug && (
+                <a
+                    href="/tienda"
+                    class="inline-flex items-center gap-1.5 rounded-full border border-green-200 bg-green-50 px-3 py-1.5 pr-2.5 text-[13px] font-medium text-green-700 transition-colors hover:border-green-400 hover:bg-green-100"
+                >
+                    {title}
+                    <svg class="size-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg>
+                </a>
+            )}
+            <div data-chips-dinamicos class="contents"></div>
+            <button
+                type="button"
+                data-clear
+                data-chips-limpiar
+                hidden
+                class="px-1 py-1.5 text-[13px] text-muted underline decoration-1 underline-offset-2 transition-colors hover:text-primary"
+            >Limpiar todo</button>
+        </div>
 
-                        return (
-                            <li>
-                                <details open={activoDentro} class="group">
-                                    <summary
+        <div class="mt-6 grid gap-8 lg:grid-cols-[244px_1fr]">
+            {/* Overlay del drawer de filtros (solo móvil) */}
+            <div data-filtros-overlay class="fixed inset-0 z-40 bg-black/50 opacity-0 pointer-events-none transition-opacity lg:hidden"></div>
+
+            {/* En móvil: drawer deslizante. En escritorio: sidebar estático (sticky). */}
+            <aside
+                data-filtros
+                class="fixed inset-y-0 right-0 z-50 w-80 max-w-[85vw] translate-x-full overflow-y-auto bg-background p-4 transition-transform lg:sticky lg:top-6 lg:z-auto lg:max-h-[calc(100vh-3rem)] lg:w-auto lg:max-w-none lg:translate-x-0 lg:overflow-y-auto lg:bg-transparent lg:p-0"
+            >
+                <div class="rounded-2xl border border-border bg-surface p-5">
+                    <div class="mb-4 flex items-center justify-between lg:hidden">
+                        <span class="font-display text-lg font-semibold text-primary">Filtros</span>
+                        <button type="button" data-filtros-close aria-label="Cerrar filtros" class="rounded-lg p-1.5 transition-colors hover:bg-surface-alt">
+                            <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg>
+                        </button>
+                    </div>
+                    <h2 class="font-mono text-xs tracking-wide text-muted">CATEGORÍA</h2>
+                    <ul class="mt-3 flex flex-col gap-1">
+                        <li>
+                            <a
+                                href="/tienda"
+                                class:list={[
+                                    "flex items-center justify-between rounded-lg px-2.5 py-1.5 text-sm transition-colors hover:bg-surface-alt",
+                                    !currentSlug ? "font-semibold text-primary shadow-[inset_2px_0_0_var(--color-cta)]" : "text-foreground",
+                                ]}
+                            >
+                                <span>Todas las categorías</span>
+                                {totalCatalogo !== undefined && (
+                                    <span class="font-mono text-xs text-muted">{totalCatalogo}</span>
+                                )}
+                            </a>
+                        </li>
+                        {padres.map((padre) => {
+                            const hijos = hijosDe(padre.id);
+
+                            // Sin subcategorías: enlace directo, sin acordeón que abrir.
+                            if (hijos.length === 0) return (
+                                <li>
+                                    <a
+                                        href={`/tienda/${padre.slug}`}
                                         class:list={[
-                                            "flex cursor-pointer list-none items-center justify-between rounded-lg px-2.5 py-1.5 text-sm transition-colors hover:bg-surface-alt [&::-webkit-details-marker]:hidden",
-                                            activoDentro ? "font-semibold text-primary" : "text-foreground",
+                                            "flex items-center justify-between rounded-lg px-2.5 py-1.5 text-sm transition-colors hover:bg-surface-alt",
+                                            padre.slug === currentSlug ? "font-semibold text-primary shadow-[inset_2px_0_0_var(--color-cta)]" : "text-foreground",
                                         ]}
                                     >
                                         <span>{padre.name}</span>
-                                        <span class="flex items-center gap-1.5">
-                                            <span class="font-mono text-xs text-muted">{padre.count}</span>
-                                            <svg class="size-3.5 text-muted transition-transform group-open:rotate-90" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                                                <path d="m9 6 6 6-6 6" />
-                                            </svg>
-                                        </span>
-                                    </summary>
+                                        <span class="font-mono text-xs text-muted">{padre.count}</span>
+                                    </a>
+                                </li>
+                            );
 
-                                    <ul class="mt-0.5 mb-1 ml-3.5 flex flex-col gap-0.5 border-l border-border pl-2">
-                                        <li>
-                                            <a
-                                                href={`/tienda/${padre.slug}`}
-                                                class:list={[
-                                                    "flex items-center justify-between rounded-lg px-2.5 py-1.5 text-[13px] transition-colors hover:bg-surface-alt",
-                                                    padre.slug === currentSlug ? "font-semibold text-primary" : "text-muted",
-                                                ]}
-                                            >Ver todo</a>
-                                        </li>
-                                        {hijos.map((hijo) => (
+                            // Con subcategorías: <details> nativo, ya accesible y sin JS.
+                            // Se abre solo si estás dentro de esa rama.
+                            const activoDentro = padre.slug === currentSlug || hijos.some((h) => h.slug === currentSlug);
+
+                            return (
+                                <li>
+                                    <details open={activoDentro} class="group">
+                                        <summary
+                                            class:list={[
+                                                "flex cursor-pointer list-none items-center justify-between rounded-lg px-2.5 py-1.5 text-sm transition-colors hover:bg-surface-alt [&::-webkit-details-marker]:hidden",
+                                                activoDentro ? "font-semibold text-primary" : "text-foreground",
+                                            ]}
+                                        >
+                                            <span>{padre.name}</span>
+                                            <span class="flex items-center gap-1.5">
+                                                <span class="font-mono text-xs text-muted">{padre.count}</span>
+                                                <svg class="size-3.5 text-muted transition-transform group-open:rotate-90" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                                    <path d="m9 6 6 6-6 6" />
+                                                </svg>
+                                            </span>
+                                        </summary>
+
+                                        <ul class="mt-0.5 mb-1 ml-3.5 flex flex-col gap-0.5 border-l border-border pl-2">
                                             <li>
                                                 <a
-                                                    href={`/tienda/${hijo.slug}`}
+                                                    href={`/tienda/${padre.slug}`}
                                                     class:list={[
-                                                        "flex items-center justify-between gap-2 rounded-lg px-2.5 py-1.5 text-[13px] transition-colors hover:bg-surface-alt",
-                                                        hijo.slug === currentSlug ? "font-semibold text-primary" : "text-foreground",
+                                                        "flex items-center justify-between rounded-lg px-2.5 py-1.5 text-[13px] transition-colors hover:bg-surface-alt",
+                                                        padre.slug === currentSlug ? "font-semibold text-primary" : "text-muted",
                                                     ]}
-                                                >
-                                                    <span>{hijo.name}</span>
-                                                    <span class="font-mono text-xs text-muted">{hijo.count}</span>
-                                                </a>
+                                                >Ver todo</a>
                                             </li>
-                                        ))}
-                                    </ul>
-                                </details>
-                            </li>
-                        );
-                    })}
-                </ul>
+                                            {hijos.map((hijo) => (
+                                                <li>
+                                                    <a
+                                                        href={`/tienda/${hijo.slug}`}
+                                                        class:list={[
+                                                            "flex items-center justify-between gap-2 rounded-lg px-2.5 py-1.5 text-[13px] transition-colors hover:bg-surface-alt",
+                                                            hijo.slug === currentSlug ? "font-semibold text-primary" : "text-foreground",
+                                                        ]}
+                                                    >
+                                                        <span>{hijo.name}</span>
+                                                        <span class="font-mono text-xs text-muted">{hijo.count}</span>
+                                                    </a>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    </details>
+                                </li>
+                            );
+                        })}
+                    </ul>
 
-                <div class="mt-5 border-t border-border pt-4">
-                    <h2 class="font-mono text-xs tracking-wide text-muted">PRECIO</h2>
-                    <div class="mt-3 flex items-center gap-2">
-                        <input
-                            type="number"
-                            data-price-min
-                            min="0"
-                            placeholder="Mín"
-                            aria-label="Precio mínimo"
-                            class="w-full rounded-lg border border-border bg-white px-2.5 py-1.5 text-sm text-foreground focus:border-ring focus:outline-none"
-                        />
-                        <span class="text-muted">—</span>
-                        <input
-                            type="number"
-                            data-price-max
-                            min="0"
-                            placeholder="Máx"
-                            aria-label="Precio máximo"
-                            class="w-full rounded-lg border border-border bg-white px-2.5 py-1.5 text-sm text-foreground focus:border-ring focus:outline-none"
-                        />
-                    </div>
-                    <p class="mt-2 text-xs text-muted">{money.format(precioMin)} – {money.format(precioMax)}</p>
-                </div>
-
-                <div class="mt-5 border-t border-border pt-4">
-                    <h2 class="font-mono text-xs tracking-wide text-muted">DISPONIBILIDAD</h2>
-                    <label class="mt-3 flex items-center gap-2 text-sm text-foreground">
-                        <input type="checkbox" data-stock-filter class="size-4 accent-cta" />
-                        Solo en stock
-                    </label>
-                </div>
-
-                <button
-                    type="button"
-                    data-clear
-                    class="mt-5 w-full rounded-lg border border-border py-2 text-sm font-medium text-muted transition-colors hover:bg-surface-alt"
-                >
-                    Limpiar filtros
-                </button>
-            </div>
-        </aside>
-
-        <div>
-            {products.length === 0 ? (
-                <p class="rounded-lg border border-border bg-surface p-6 text-muted">
-                    Aún no hay productos en esta categoría.
-                </p>
-            ) : (
-                <Fragment>
-                    <div class="grid grid-cols-2 gap-5 lg:grid-cols-3" data-grid>
-                        {products.map((product) => (
-                            <ProductCard product={product} category={badge} />
-                        ))}
-                    </div>
-
-                    {/* El contenido lo genera el script según filtro/orden/página */}
-                    <nav data-pagination class="mt-10 flex flex-wrap items-center justify-center gap-2" aria-label="Paginación"></nav>
-
-                    {/* Estado vacío: lo muestra el script cuando el filtro deja 0 resultados.
-                        No es solo un aviso — ofrece salida por asesoría, que es el diferencial. */}
-                    <div data-empty hidden class="rounded-2xl border border-border bg-surface p-8 text-center">
-                        <h3 class="font-display text-xl font-semibold text-primary">
-                            Ningún producto cumple los filtros
-                        </h3>
-                        <p class="mx-auto mt-2 max-w-md text-sm leading-relaxed text-muted">
-                            Prueba ampliar el rango de precio o quitar la restricción de stock.
-                            Si buscas algo puntual, te lo conseguimos.
-                        </p>
-                        <div class="mt-6 flex flex-col justify-center gap-3 sm:flex-row">
-                            <button
-                                type="button"
-                                data-clear
-                                class="rounded-lg bg-cta px-6 py-3 font-semibold text-cta-contrast transition-colors hover:bg-green-600"
-                            >Limpiar filtros</button>
-                            <a
-                                href="/contacto"
-                                class="rounded-lg border-[1.5px] border-border px-6 py-3 font-semibold text-primary transition-colors hover:bg-surface-alt"
-                            >Pedir por asesoría</a>
+                    <div class="mt-5 border-t border-border pt-4">
+                        <h2 class="font-mono text-xs tracking-wide text-muted">PRECIO</h2>
+                        <div class="mt-3 flex items-center gap-2">
+                            <input
+                                type="number"
+                                data-price-min
+                                min="0"
+                                placeholder="Mín"
+                                aria-label="Precio mínimo"
+                                class="w-full min-w-0 rounded-lg border border-border bg-white px-2.5 py-1.5 text-sm text-foreground focus:border-ring focus:outline-none"
+                            />
+                            <span class="text-muted">—</span>
+                            <input
+                                type="number"
+                                data-price-max
+                                min="0"
+                                placeholder="Máx"
+                                aria-label="Precio máximo"
+                                class="w-full min-w-0 rounded-lg border border-border bg-white px-2.5 py-1.5 text-sm text-foreground focus:border-ring focus:outline-none"
+                            />
                         </div>
+                        <p class="mt-2 text-xs text-muted">{money.format(precioMin)} – {money.format(precioMax)}</p>
                     </div>
-                </Fragment>
-            )}
+
+                    <div class="mt-5 border-t border-border pt-4">
+                        <h2 class="font-mono text-xs tracking-wide text-muted">DISPONIBILIDAD</h2>
+                        <label class="mt-3 flex items-center gap-2 text-sm text-foreground">
+                            <input type="checkbox" data-stock-filter class="size-4 accent-cta" />
+                            Solo en stock
+                        </label>
+                    </div>
+
+                    <button
+                        type="button"
+                        data-clear
+                        class="mt-5 w-full rounded-lg border border-border py-2 text-sm font-medium text-muted transition-colors hover:bg-surface-alt"
+                    >
+                        Limpiar filtros
+                    </button>
+                </div>
+
+                {/* Asistencia — rol Tierra, mismo tono que el resto del sitio para
+                    "no vendemos a ciegas". Repetido aquí porque es el punto donde
+                    alguien puede no encontrar justo lo que busca. */}
+                <div class="mt-4 rounded-2xl border border-earth-500/20 bg-earth-50 p-4.5">
+                    <p class="font-mono text-[10px] tracking-[0.08em] text-substrate">¿NO ENCUENTRAS ALGO?</p>
+                    <p class="mt-2 text-[13px] leading-relaxed text-foreground">
+                        Llevamos 6 años consiguiendo lo puntual. Cuéntanos qué necesitas.
+                    </p>
+                    <a href="/contacto" class="mt-3 inline-flex items-center gap-1.5 text-[13px] font-semibold text-substrate hover:text-earth-700">
+                        Pedir por asesoría →
+                    </a>
+                </div>
+            </aside>
+
+            <div>
+                {products.length === 0 ? (
+                    <p class="rounded-lg border border-border bg-surface p-6 text-muted">
+                        Aún no hay productos en esta categoría.
+                    </p>
+                ) : (
+                    <Fragment>
+                        <div class="grid grid-cols-2 gap-5 lg:grid-cols-3 lg:gap-7" data-grid>
+                            {products.map((product) => (
+                                <ProductCard product={product} category={badge} />
+                            ))}
+                        </div>
+
+                        {/* El contenido lo genera el script según filtro/orden/página */}
+                        <nav data-pagination class="mt-10 flex flex-wrap items-center justify-center gap-2" aria-label="Paginación"></nav>
+
+                        {/* Estado vacío: lo muestra el script cuando el filtro deja 0 resultados.
+                            No es solo un aviso — ofrece salida por asesoría, que es el diferencial. */}
+                        <div data-empty hidden class="rounded-2xl border border-border bg-surface p-8 text-center">
+                            <h3 class="font-display text-xl font-semibold text-primary">
+                                Ningún producto cumple los filtros
+                            </h3>
+                            <p class="mx-auto mt-2 max-w-md text-sm leading-relaxed text-muted">
+                                Prueba ampliar el rango de precio o quitar la restricción de stock.
+                                Si buscas algo puntual, te lo conseguimos.
+                            </p>
+                            <div class="mt-6 flex flex-col justify-center gap-3 sm:flex-row">
+                                <button
+                                    type="button"
+                                    data-clear
+                                    class="rounded-lg bg-cta px-6 py-3 font-semibold text-cta-contrast transition-colors hover:bg-green-600"
+                                >Limpiar filtros</button>
+                                <a
+                                    href="/contacto"
+                                    class="rounded-lg border-[1.5px] border-border px-6 py-3 font-semibold text-primary transition-colors hover:bg-surface-alt"
+                                >Pedir por asesoría</a>
+                            </div>
+                        </div>
+
+                        {/* Franja de Raíz Viva: la marca propia, visible desde cualquier
+                            categoría que se esté mirando, no solo desde /tienda general. */}
+                        <a
+                            href="/raiz-viva"
+                            class="mt-8 grid grid-cols-1 overflow-hidden rounded-2xl border border-earth-500/25 bg-earth-50 transition-transform duration-300 hover:-translate-y-1 sm:grid-cols-[220px_1fr]"
+                        >
+                            <div class="relative aspect-video overflow-hidden bg-earth-100 sm:aspect-auto">
+                                <Image
+                                    src={raizVivaImg}
+                                    alt="Sustrato Raíz Viva"
+                                    widths={[320, 440]}
+                                    sizes="(min-width: 640px) 220px, 100vw"
+                                    class="absolute inset-0 h-full w-full object-cover"
+                                />
+                            </div>
+                            <div class="p-6 sm:p-7">
+                                <p class="font-mono text-[10px] font-semibold tracking-widest text-substrate">★ MARCA PROPIA ECOLLIFÉN</p>
+                                <h3 class="mt-2.5 font-display text-[22px] leading-tight font-semibold text-earth-700">
+                                    Raíz Viva — sustratos y compost
+                                </h3>
+                                <p class="mt-2 max-w-[54ch] text-sm leading-relaxed text-muted">
+                                    Nuestra línea propia para mejorar la tierra de manera natural. Volver al origen, cuidar la raíz.
+                                </p>
+                                <span class="mt-4 inline-flex items-center gap-2 rounded-lg bg-substrate px-5 py-2.5 text-sm font-semibold text-substrate-contrast">
+                                    Ver la línea completa →
+                                </span>
+                            </div>
+                        </a>
+                    </Fragment>
+                )}
+            </div>
         </div>
     </div>
 </div>
 
+{/* Modal de vista rápida. Se rellena en JS a partir de los data-* de la
+    tarjeta sobre la que se hizo clic — sin pedir nada al servidor, y con el
+    precio/stock ya corregidos por PreciosEnVivo si aplicó. */}
+<div
+    data-qv-overlay
+    hidden
+    class="fixed inset-0 z-90 flex items-center justify-center bg-green-950/60 p-6 backdrop-blur-[3px]"
+>
+    <div
+        data-qv-panel
+        role="dialog"
+        aria-modal="true"
+        aria-label="Vista rápida del producto"
+        class="relative grid w-full max-w-3xl grid-cols-1 overflow-hidden rounded-2xl bg-surface shadow-2xl sm:grid-cols-2"
+    >
+        <div class="flex items-center justify-center border-b border-border bg-white p-6 sm:border-r sm:border-b-0">
+            <img data-qv-img src="" alt="" class="max-h-80 max-w-full object-contain" />
+        </div>
+        <div class="p-7">
+            <p class="font-mono text-[11px] tracking-[0.08em] text-muted">
+                <span data-qv-cat></span> <span data-qv-sku></span>
+            </p>
+            <h3 data-qv-nombre class="mt-3 font-display text-2xl leading-tight font-semibold text-primary"></h3>
+            <div class="mt-4 flex items-baseline gap-3.5">
+                <p data-qv-precio class="text-[28px] leading-none font-bold tracking-tight text-green-700 tabular-nums"></p>
+                <span data-qv-estado class="font-mono text-[11px] font-medium"></span>
+            </div>
+            <p data-qv-desc class="mt-4 text-sm leading-relaxed text-muted"></p>
+            <div class="mt-6 flex gap-2.5">
+                <button
+                    type="button"
+                    data-qv-agregar
+                    class="flex-1 rounded-lg bg-cta py-3 text-center font-semibold text-cta-contrast transition-colors hover:bg-green-600"
+                >Agregar</button>
+                <a
+                    data-qv-cotizar
+                    href="/contacto"
+                    class="flex-1 rounded-lg border-[1.5px] border-border py-3 text-center font-semibold text-green-700 transition-colors hover:bg-surface-alt"
+                >Cotizar</a>
+                <a data-qv-ficha href="#" class="flex items-center justify-center rounded-lg border-[1.5px] border-border px-4 font-semibold text-primary transition-colors hover:bg-surface-alt">
+                    Ver ficha
+                </a>
+            </div>
+        </div>
+        <button
+            type="button"
+            data-qv-cerrar
+            aria-label="Cerrar vista rápida"
+            class="absolute top-3.5 right-3.5 flex size-9 items-center justify-center rounded-full border border-border bg-surface text-muted transition-colors hover:bg-surface-alt hover:text-primary"
+        >
+            <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg>
+        </button>
+    </div>
+</div>
+
+<style>
+    /* Lavado radial tenue: Verde Agro arriba-izquierda, Dorado abajo-derecha,
+       en muy baja opacidad sobre el crema base. Es decoración, así que va
+       detrás de todo (z-index natural del documento) y no interfiere con
+       el contraste de texto, que sigue leyendo sobre --color-background. */
+    .tienda-fondo {
+        background-color: var(--color-background);
+        background-image:
+            radial-gradient(60rem 34rem at 8% 0%, color-mix(in srgb, var(--color-cta) 10%, transparent), transparent 60%),
+            radial-gradient(46rem 30rem at 100% 100%, color-mix(in srgb, var(--color-gold-500) 8%, transparent), transparent 55%);
+        background-repeat: no-repeat;
+    }
+</style>
+
 <script>
-    // Catálogo interactivo: filtro de stock + orden + paginación (15 por vista).
-    // Se re-inicia en cada navegación (astro:page-load) por el ClientRouter.
+    // Catálogo interactivo: filtro de stock + precio + orden + paginación (15
+    // por vista) + chips de filtros activos + vista rápida. Se re-inicia en
+    // cada navegación (astro:page-load) por el ClientRouter.
     const PAGE_SIZE = 15;
 
     type Item = { el: HTMLElement, orden: number, price: number, stock: string, id: number };
+
+    const money = new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 });
 
     function initCatalogo() {
         const grid = document.querySelector('[data-grid]');
@@ -283,6 +509,10 @@ const money = new Intl.NumberFormat('es-CL', {
         const priceMinEl = document.querySelector('[data-price-min]');
         const priceMaxEl = document.querySelector('[data-price-max]');
         const countEl = document.querySelector('[data-count]');
+        const chipsWrap = document.querySelector('[data-chips]');
+        const chipsLabel = document.querySelector('[data-chips-label]');
+        const chipsDinamicos = document.querySelector('[data-chips-dinamicos]');
+        const chipsLimpiar = document.querySelector('[data-chips-limpiar]');
 
         const items: Item[] = Array.from(grid.children).map((el, orden) => ({
             el: el as HTMLElement,
@@ -331,10 +561,46 @@ const money = new Intl.NumberFormat('es-CL', {
             boton('&rsaquo;', current + 1, btnFlecha, current === totalPages);
         }
 
+        // Píldora de chip, con su botón de quitar.
+        function chip(label: string, quitar: () => void): HTMLElement {
+            const b = document.createElement('button');
+            b.type = 'button';
+            b.className = 'inline-flex items-center gap-1.5 rounded-full border border-green-200 bg-green-50 px-3 py-1.5 pr-2.5 text-[13px] font-medium text-green-700 transition-colors hover:border-green-400 hover:bg-green-100';
+            b.innerHTML = `${label} <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>`;
+            b.addEventListener('click', quitar);
+            return b;
+        }
+
+        function actualizarChips(soloStock: boolean, min: string, max: string) {
+            if (!chipsDinamicos) return;
+            chipsDinamicos.innerHTML = '';
+
+            if (soloStock && stockChk instanceof HTMLInputElement) {
+                chipsDinamicos.appendChild(chip('Solo en stock', () => { stockChk.checked = false; current = 1; render(); }));
+            }
+            if (min && priceMinEl instanceof HTMLInputElement) {
+                chipsDinamicos.appendChild(chip(`Desde ${money.format(Number(min))}`, () => { priceMinEl.value = ''; current = 1; render(); }));
+            }
+            if (max && priceMaxEl instanceof HTMLInputElement) {
+                chipsDinamicos.appendChild(chip(`Hasta ${money.format(Number(max))}`, () => { priceMaxEl.value = ''; current = 1; render(); }));
+            }
+
+            // El chip de categoría es un <a> fijo del servidor; solo decidimos si
+            // mostrar la fila completa y la etiqueta "FILTROS".
+            const hayDinamicos = chipsDinamicos.children.length > 0;
+            const hayCategoria = chipsWrap?.querySelector('a') != null;
+            const hayAlgo = hayDinamicos || hayCategoria;
+
+            chipsLabel?.classList.toggle('hidden', !hayAlgo);
+            chipsLimpiar?.toggleAttribute('hidden', !hayDinamicos);
+        }
+
         function render() {
             const soloStock = stockChk instanceof HTMLInputElement && stockChk.checked;
-            const min = priceMinEl instanceof HTMLInputElement && priceMinEl.value ? Number(priceMinEl.value) : 0;
-            const max = priceMaxEl instanceof HTMLInputElement && priceMaxEl.value ? Number(priceMaxEl.value) : Infinity;
+            const minVal = priceMinEl instanceof HTMLInputElement ? priceMinEl.value : '';
+            const maxVal = priceMaxEl instanceof HTMLInputElement ? priceMaxEl.value : '';
+            const min = minVal ? Number(minVal) : 0;
+            const max = maxVal ? Number(maxVal) : Infinity;
 
             const cumple = (it: Item) =>
                 (!soloStock || it.stock === 'instock') && it.price >= min && it.price <= max;
@@ -353,9 +619,10 @@ const money = new Intl.NumberFormat('es-CL', {
                 it.el.style.display = Math.floor(i / PAGE_SIZE) + 1 === current ? '' : 'none';
             });
 
-            if (countEl) countEl.textContent = `${visibles.length} productos`;
+            if (countEl) countEl.textContent = `${visibles.length} ${visibles.length === 1 ? 'producto' : 'productos'}`;
             if (emptyMsg) emptyMsg.toggleAttribute('hidden', visibles.length > 0);
             construirPager(totalPages);
+            actualizarChips(soloStock, minVal, maxVal);
         }
 
         sortSel?.addEventListener('change', () => { current = 1; render(); });
@@ -382,7 +649,7 @@ const money = new Intl.NumberFormat('es-CL', {
         filtrosOverlay?.addEventListener('click', cerrarFiltros);
         document.querySelectorAll('[data-filtros-close]').forEach((el) => el.addEventListener('click', cerrarFiltros));
 
-        // --- Limpiar filtros --- (hay dos botones: el del sidebar y el del estado vacío)
+        // --- Limpiar filtros --- (varios botones: sidebar, vacío, chips)
         document.querySelectorAll('[data-clear]').forEach((btn) => btn.addEventListener('click', () => {
             if (sortSel instanceof HTMLSelectElement) sortSel.value = 'relevancia';
             if (stockChk instanceof HTMLInputElement) stockChk.checked = false;
@@ -391,6 +658,74 @@ const money = new Intl.NumberFormat('es-CL', {
             current = 1;
             render();
         }));
+
+        // --- Vista rápida ---
+        const qvOverlay = document.querySelector('[data-qv-overlay]');
+        const qvPanel = document.querySelector('[data-qv-panel]');
+
+        function abrirQV(card: HTMLElement) {
+            const d = card.dataset;
+            const estados: Record<string, { label: string, color: string }> = {
+                instock: { label: 'En stock', color: 'var(--color-isotipo)' },
+                onbackorder: { label: 'Bajo pedido', color: 'var(--color-gold-700)' },
+                outofstock: { label: 'Sin stock', color: 'var(--color-muted)' },
+            };
+            // El precio y el estado se leen de lo que la tarjeta muestra AHORA
+            // (PreciosEnVivo ya pudo haberlos corregido), no del data- original.
+            const precioTexto = card.querySelector('[data-precio]')?.textContent?.trim() ?? '';
+            const stockActual = card.querySelector('[data-btn-agregar]')?.hasAttribute('hidden') ? 'outofstock' : 'instock';
+            const estado = estados[stockActual] ?? estados.outofstock;
+            const enStock = stockActual === 'instock';
+
+            const set = (sel: string, texto: string) => {
+                const el = document.querySelector(sel);
+                if (el) el.textContent = texto;
+            };
+
+            set('[data-qv-nombre]', d.name ?? '');
+            set('[data-qv-cat]', d.cat ?? '');
+            set('[data-qv-sku]', d.sku ? `· SKU ${d.sku}` : '');
+            set('[data-qv-precio]', precioTexto);
+            set('[data-qv-desc]', d.desc || 'Sin descripción disponible — pide más detalle por asesoría.');
+
+            const estadoEl = document.querySelector('[data-qv-estado]') as HTMLElement | null;
+            if (estadoEl) { estadoEl.textContent = `● ${estado.label}`; estadoEl.style.color = estado.color; }
+
+            const img = document.querySelector('[data-qv-img]') as HTMLImageElement | null;
+            if (img) { img.src = d.img ?? ''; img.alt = d.name ?? ''; }
+
+            const agregar = document.querySelector('[data-qv-agregar]') as HTMLElement | null;
+            const cotizar = document.querySelector('[data-qv-cotizar]') as HTMLElement | null;
+            if (agregar) {
+                agregar.toggleAttribute('hidden', !enStock);
+                if (d.id) agregar.setAttribute('data-add-to-cart', d.id); // reutiliza el handler global del carrito
+            }
+            cotizar?.toggleAttribute('hidden', enStock);
+
+            const ficha = document.querySelector('[data-qv-ficha]') as HTMLAnchorElement | null;
+            if (ficha && d.id) ficha.href = `/producto/${d.id}`;
+
+            qvOverlay?.removeAttribute('hidden');
+            document.body.classList.add('overflow-hidden');
+        }
+
+        function cerrarQV() {
+            qvOverlay?.setAttribute('hidden', '');
+            document.body.classList.remove('overflow-hidden');
+        }
+
+        document.querySelectorAll('[data-quickview]').forEach((btn) => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                const card = btn.closest('article');
+                if (card instanceof HTMLElement) abrirQV(card);
+            });
+        });
+
+        qvOverlay?.addEventListener('click', (e) => { if (e.target === qvOverlay) cerrarQV(); });
+        qvPanel?.addEventListener('click', (e) => e.stopPropagation());
+        document.querySelector('[data-qv-cerrar]')?.addEventListener('click', cerrarQV);
+        document.addEventListener('keydown', (e) => { if (e.key === 'Escape') cerrarQV(); });
 
         render();
     }

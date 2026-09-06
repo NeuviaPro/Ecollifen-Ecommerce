@@ -6,6 +6,18 @@
 //
 // El carrusel lo maneja Swiper (crossfade + flechas + puntos + auto-avance).
 import { getWPSlides } from '@/lib/api'
+
+// El CSS de Swiper se importa AQUÍ, en el frontmatter, y no dentro del
+// <script> de abajo. Es a propósito: importado desde el script, Vite lo inyecta
+// en el <head> al ejecutar el módulo, y ese <style> no forma parte del HTML de
+// la página. El ClientRouter, al navegar, borra del <head> todo lo que no venga
+// en el HTML de la página nueva — y como el módulo ya se ejecutó una vez, nunca
+// vuelve a inyectarlo. Resultado: al volver al inicio el carrusel quedaba sin
+// estilos (las tarjetas apiladas en vertical) hasta recargar. Desde el
+// frontmatter es una dependencia de estilo del componente, viaja en el HTML y
+// el router la restaura en cada navegación.
+import 'swiper/css';
+import 'swiper/css/effect-fade';
 import { Picture } from 'astro:assets';
 import { asesoriaHref } from '@/lib/contacto';
 
@@ -65,7 +77,11 @@ const beneficios = [
                             <h1 class="mt-4 max-w-2xl font-display text-4xl font-semibold text-balance md:text-6xl">
                                 {slide.titulo}
                             </h1>
-                            <div class="mt-4 h-1 w-16 rounded-full bg-gold-500"></div>
+                            {/* Se dibuja de izquierda a derecha al cargar. Es el
+                                único adorno animado del hero: el h1 y la foto NO
+                                se animan porque son el elemento LCP, y arrancarlos
+                                en opacidad 0 retrasaría la métrica que Google mide. */}
+                            <div class="linea-hero mt-4 h-1 w-16 rounded-full bg-gold-500"></div>
                             <p class="mt-5 max-w-xl text-lg text-green-100/90">
                                 {slide.descripcion}
                             </p>
@@ -73,7 +89,7 @@ const beneficios = [
                             <div class="mt-8 flex flex-col gap-3 sm:flex-row">
                                 <a
                                     href={asesoriaHref()}
-                                    class="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-cta px-7 py-4 font-semibold text-primary transition-colors hover:bg-green-600 hover:text-white sm:w-auto"
+                                    class="brillo-cta inline-flex w-full items-center justify-center gap-2 rounded-lg bg-cta px-7 py-4 font-semibold text-primary transition-colors hover:bg-green-600 hover:text-white sm:w-auto"
                                 >
                                     <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.5a8.4 8.4 0 0 1-8.5 8.5 8.6 8.6 0 0 1-3.9-.9L3 21l1.9-5.6A8.5 8.5 0 1 1 21 11.5Z"/></svg>
                                     Solicitar asesoría técnica
@@ -154,8 +170,6 @@ const beneficios = [
     // anterior para no dejar temporizadores huérfanos.
     import Swiper from 'swiper';
     import { Autoplay, EffectFade, Navigation, Pagination } from 'swiper/modules';
-    import 'swiper/css';
-    import 'swiper/css/effect-fade';
 
     let instancia: Swiper | null = null;
 
@@ -168,6 +182,10 @@ const beneficios = [
 
         const total = Number(el.dataset.slides ?? '1');
 
+        // Con "reducir movimiento" activo el hero no rota solo: las flechas y
+        // los puntos siguen ahí para cambiar de slide a voluntad.
+        const menosMovimiento = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
         instancia = new Swiper(el, {
             modules: [Autoplay, EffectFade, Navigation, Pagination],
             effect: 'fade',
@@ -175,7 +193,7 @@ const beneficios = [
             speed: 700,
             loop: total > 1,
             // Con un solo slide no hay nada que rotar ni que controlar.
-            autoplay: total > 1 ? { delay: 6000, disableOnInteraction: false } : false,
+            autoplay: total > 1 && !menosMovimiento ? { delay: 6000, disableOnInteraction: false } : false,
             navigation: total > 1 ? {
                 prevEl: '[data-hero-prev]',
                 nextEl: '[data-hero-next]',

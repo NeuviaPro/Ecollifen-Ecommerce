@@ -1,8 +1,9 @@
 ---
 // Tarjeta de producto reutilizable (home + catálogo). Recibe un WooProduct.
-// Sigue el rediseño: imagen 4:3 a sangre, precio en cifras tabulares y
-// "Cotizar" como acción secundaria — sin stock no hay compra directa, así que
-// no debe competir visualmente con el "Agregar" de los productos disponibles.
+// Sigue el rediseño de Claude Design: imagen 1:1 con aire blanco, insignia de
+// categoría, botón de "Vista rápida" que aparece al pasar el mouse (abre el
+// modal manejado por Catalogo.astro), precio en cifras tabulares y "Cotizar"
+// como acción secundaria — sin stock no hay compra directa.
 import type { WooProduct } from '@/lib/api';
 
 interface Props {
@@ -27,23 +28,40 @@ const estados: Record<string, { label: string, color: string }> = {
 };
 const estado = estados[product.stock_status] ?? estados.outofstock;
 const enStock = product.stock_status === 'instock';
+
+// Raíz Viva es la marca propia — su insignia va en rol Tierra, no en el verde
+// genérico de categoría, para que se distinga en el mismo vistazo.
+const esRaizViva = product.categories?.some((c) => c.slug === 'raiz-viva') ?? false;
+
+// Texto plano de la descripción corta, para la vista rápida. Se guarda en un
+// atributo de datos: así el modal no necesita otra petición para mostrarla.
+const descripcionPlana = (product.short_description || '')
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/&[a-z]+;|&#\d+;/gi, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
 ---
 
 <article
-    class="flex flex-col overflow-hidden rounded-2xl border border-border bg-surface"
+    class="group/card relative flex flex-col overflow-hidden rounded-2xl border border-border bg-surface transition-all duration-300 hover:-translate-y-1.5 hover:border-green-200 hover:shadow-[0_18px_40px_-22px_rgba(18,58,30,.35)]"
     data-id={product.id}
     data-price={product.price}
     data-stock={product.stock_status}
+    data-name={product.name}
+    data-sku={product.sku}
+    data-desc={descripcionPlana}
+    data-cat={category}
+    data-img={image?.src}
 >
     {/* Ventana blanca cuadrada: el 90% de las fotos de Woo trae fondo blanco y
         el 80% viene en 1:1, así que con este marco la imagen se funde con la
         tarjeta en vez de leerse como un recuadro pegado sobre el crema. */}
-    <div class="relative aspect-square overflow-hidden border-b border-border bg-white p-2">
+    <div class="relative aspect-square overflow-hidden border-b border-border bg-white p-2.5">
         {image ? (
             <img
                 src={image.src}
                 alt={image.alt || product.name}
-                class="h-full w-full object-contain"
+                class="h-full w-full object-contain transition-transform duration-500 group-hover/card:scale-105"
                 loading="lazy"
             />
         ) : (
@@ -52,10 +70,29 @@ const enStock = product.stock_status === 'instock';
             </span>
         )}
         {category && (
-            <span class="absolute top-2.5 left-2.5 rounded-md bg-green-800 px-2 py-1 font-mono text-[10px] tracking-wider text-white uppercase">
+            <span
+                class:list={[
+                    "absolute top-2.5 left-2.5 rounded-md px-2 py-1 font-mono text-[10px] tracking-wider text-white uppercase",
+                    esRaizViva ? "bg-substrate" : "bg-green-800",
+                ]}
+            >
                 {category}
             </span>
         )}
+
+        {/* Vista rápida: solo tiene sentido con puntero (mouse), por eso queda
+            oculta en táctil — ahí ya se puede ir directo a la ficha. */}
+        <button
+            type="button"
+            data-quickview
+            aria-label={`Vista rápida de ${product.name}`}
+            class="pointer-events-none absolute inset-x-2.5 bottom-2.5 flex translate-y-2 items-center justify-center gap-2 rounded-lg bg-primary/95 py-2.5 text-[13px] font-semibold text-primary-contrast opacity-0 backdrop-blur-sm transition-all duration-200 group-hover/card:pointer-events-auto group-hover/card:translate-y-0 group-hover/card:opacity-100 max-lg:hidden"
+        >
+            <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"></path><circle cx="12" cy="12" r="3"></circle>
+            </svg>
+            Vista rápida
+        </button>
     </div>
 
     <div class="flex flex-1 flex-col gap-2.5 p-4">

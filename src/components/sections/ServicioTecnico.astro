@@ -10,7 +10,7 @@ const pills = ['Diagnóstico', 'Reparación', 'Mantención preventiva', 'Atenci�
 ---
 
 <section class="bg-[#faf1dd]">
-    <div class="mx-auto flex max-w-6xl flex-col gap-6 px-6 py-7 md:flex-row md:items-center md:gap-7">
+    <div class="mx-auto flex max-w-6xl flex-col gap-6 px-6 py-7 md:flex-row md:items-center md:gap-7" data-revelar>
         <div class="w-full shrink-0 overflow-hidden rounded-xl border border-gold-200 md:w-45">
             <Image
                 src={tecnicoImg}
@@ -29,9 +29,11 @@ const pills = ['Diagnóstico', 'Reparación', 'Mantención preventiva', 'Atenci�
             <h2 class="mt-1.5 font-display text-xl font-semibold text-primary md:text-2xl">
                 Lo que vendemos, lo seguimos atendiendo
             </h2>
+            {/* Las píldoras se tiñen de dorado al pasar el mouse: color sutil
+                ante un evento, sin mover nada de sitio. */}
             <ul class="mt-3 flex flex-wrap gap-2">
                 {pills.map((pill) => (
-                    <li class="rounded-full border border-gold-200 bg-white/70 px-3 py-1.5 text-[12.5px] text-gold-700">
+                    <li class="rounded-full border border-gold-200 bg-white/70 px-3 py-1.5 text-[12.5px] text-gold-700 transition-colors duration-300 hover:border-gold-500 hover:bg-gold-100">
                         {pill}
                     </li>
                 ))}
@@ -40,7 +42,7 @@ const pills = ['Diagnóstico', 'Reparación', 'Mantención preventiva', 'Atenci�
 
         <a
             href="/servicio-tecnico"
-            class="shrink-0 rounded-xl bg-tech px-6 py-3.5 text-center font-semibold whitespace-nowrap text-tech-contrast transition-colors hover:bg-gold-600"
+            class="brillo-cta shrink-0 rounded-xl bg-tech px-6 py-3.5 text-center font-semibold whitespace-nowrap text-tech-contrast transition-colors hover:bg-gold-600"
         >
             Agendar servicio técnico
         </a>

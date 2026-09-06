@@ -67,23 +67,26 @@ for (const vitrina of vitrinas) {
 
 {tarjetas.length > 0 && (
     <section class="mx-auto max-w-6xl px-6 py-14">
-        <div class="mb-6 flex items-end justify-between gap-4">
+        <div class="mb-6 flex items-end justify-between gap-4" data-revelar>
             <div>
                 <p class="font-mono text-[11px] tracking-[0.16em] text-isotipo">ENTRA AL CATÁLOGO</p>
                 <h2 class="mt-1.5 font-display text-3xl font-semibold text-primary">
                     La tienda en 3 vitrinas
                 </h2>
             </div>
-            <a href="/tienda" class="text-sm font-medium whitespace-nowrap text-isotipo hover:text-primary">
-                Ver todo el catálogo →
+            <a href="/tienda" class="group text-sm font-medium whitespace-nowrap text-isotipo transition-colors hover:text-primary">
+                Ver todo el catálogo
+                <span class="inline-block transition-transform duration-300 group-hover:translate-x-1">→</span>
             </a>
         </div>
 
         <div class="grid grid-cols-1 gap-5 sm:grid-cols-3">
-            {tarjetas.map((tarjeta) => (
+            {tarjetas.map((tarjeta, i) => (
                 <a
                     href={`/tienda/${tarjeta.slug}`}
-                    class="group relative flex h-65 items-end overflow-hidden rounded-2xl bg-[repeating-linear-gradient(135deg,#d9e2d3_0_14px,#e3ebdd_14px_28px)]"
+                    data-revelar
+                    style={`--retraso: ${i * 90}ms`}
+                    class="group relative flex h-65 items-end overflow-hidden rounded-2xl bg-[repeating-linear-gradient(135deg,#d9e2d3_0_14px,#e3ebdd_14px_28px)] transition-transform duration-300 ease-out hover:-translate-y-1.5"
                 >
                     {tarjeta.foto && (
                         <Image
@@ -94,6 +97,11 @@ for (const vitrina of vitrinas) {
                             class="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                         />
                     )}
+
+                    {/* Velo sólido aparte del degradado: un degradado no se puede
+                        transicionar, pero un color plano sí. Al pasar el mouse la
+                        tarjeta se tiñe un poco más de verde. */}
+                    <div class="absolute inset-0 bg-green-950/0 transition-colors duration-300 group-hover:bg-green-950/25"></div>
 
                     <div class="relative w-full bg-linear-to-t from-green-900/95 via-green-900/55 to-transparent p-5">
                         <p class="font-mono text-xs text-green-200">{tarjeta.count} productos</p>

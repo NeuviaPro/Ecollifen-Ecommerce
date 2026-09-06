@@ -6,6 +6,18 @@
 // marque como "Destacado" en WooCommerce y completa con productos en stock:
 // con 4 tarjetas fijas el carrusel no tenía sentido.
 import { getDestacados } from '@/lib/api';
+
+// El CSS de Swiper se importa AQUÍ, en el frontmatter, y no dentro del
+// <script> de abajo. Es a propósito: importado desde el script, Vite lo inyecta
+// en el <head> al ejecutar el módulo, y ese <style> no forma parte del HTML de
+// la página. El ClientRouter, al navegar, borra del <head> todo lo que no venga
+// en el HTML de la página nueva — y como el módulo ya se ejecutó una vez, nunca
+// vuelve a inyectarlo. Resultado: al volver al inicio el carrusel quedaba sin
+// estilos (las tarjetas apiladas en vertical) hasta recargar. Desde el
+// frontmatter es una dependencia de estilo del componente, viaja en el HTML y
+// el router la restaura en cada navegación.
+import 'swiper/css';
+import 'swiper/css/free-mode';
 import type { WooProduct } from '@/lib/api';
 import ProductCard from '@/components/product/ProductCard.astro';
 
@@ -18,15 +30,19 @@ try {
 ---
 
 <section class="mx-auto max-w-6xl px-6 py-14">
-    <div class="mb-6 flex items-end justify-between gap-4">
+    {/* Solo se revela el encabezado. Las tarjetas van dentro del carrusel y
+        Swiper controla su `transform` fotograma a fotograma: animarlas por
+        fuera pelearía con él y dejaría el carrusel descuadrado. */}
+    <div class="mb-6 flex items-end justify-between gap-4" data-revelar>
         <div>
             <p class="font-mono text-[11px] tracking-[0.16em] text-isotipo">CON PRECIO Y STOCK A LA VISTA</p>
             <h2 class="mt-1.5 font-display text-3xl font-semibold text-primary">
                 Lo más pedido esta temporada
             </h2>
         </div>
-        <a href="/tienda" class="text-sm font-medium whitespace-nowrap text-isotipo hover:text-primary">
-            Ver todo el catálogo →
+        <a href="/tienda" class="group text-sm font-medium whitespace-nowrap text-isotipo transition-colors hover:text-primary">
+            Ver todo el catálogo
+            <span class="inline-block transition-transform duration-300 group-hover:translate-x-1">→</span>
         </a>
     </div>
 
@@ -69,8 +85,6 @@ try {
     // Se detiene al pasar el mouse para poder leer y hacer clic.
     import Swiper from 'swiper';
     import { Autoplay, FreeMode } from 'swiper/modules';
-    import 'swiper/css';
-    import 'swiper/css/free-mode';
 
     let instancia: Swiper | null = null;
 
@@ -86,6 +100,11 @@ try {
         // pocos productos se queda quieto en vez de dar saltos raros.
         if (total < 6) return;
 
+        // Un carrusel que avanza solo, sin parar, es exactamente el tipo de
+        // movimiento que molesta a quien activó "reducir movimiento" en su
+        // sistema. Se deja quieto y arrastrable a mano, no se esconde.
+        const menosMovimiento = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
         instancia = new Swiper(el, {
             modules: [Autoplay, FreeMode],
             slidesPerView: 1.15,
@@ -93,7 +112,7 @@ try {
             loop: true,
             speed: 5000,
             freeMode: { enabled: true, momentum: false },
-            autoplay: {
+            autoplay: menosMovimiento ? false : {
                 delay: 0,
                 disableOnInteraction: false,
                 pauseOnMouseEnter: true,

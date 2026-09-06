@@ -66,6 +66,21 @@ const tituloCompleto = `Ecollifén | ${title}`;
 		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 		<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,100..900;1,9..144,100..900&family=IBM+Plex+Mono:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;1,100;1,200;1,300;1,400;1,500;1,600;1,700&family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap" rel="stylesheet">
 		
+		{/* Marca el documento como "puede animar" ANTES del primer pintado, por
+			eso va en línea y no en un <script> normal (que es diferido). Sin esta
+			clase, las secciones con data-revelar se ven normales: el contenido
+			nunca depende del JS para ser visible.
+
+			data-astro-rerun es obligatorio: al navegar, el ClientRouter borra
+			todos los atributos de <html> y no re-ejecuta los scripts ya
+			ejecutados; sin este atributo la clase se perdería tras la primera
+			navegación y las animaciones dejarían de correr. */}
+		<script is:inline data-astro-rerun>
+			if (!matchMedia('(prefers-reduced-motion: reduce)').matches) {
+				document.documentElement.classList.add('anim');
+			}
+		</script>
+
 		<ClientRouter />
 	</head>
 	<body>
@@ -76,6 +91,55 @@ const tituloCompleto = `Ecollifén | ${title}`;
 		<PreciosEnVivo />
 	</body>
 </html>
+
+<script>
+	// Revelado al hacer scroll. Un solo observador para todo el sitio: cualquier
+	// elemento con [data-revelar] aparece al entrar en pantalla.
+	//
+	// IntersectionObserver y no un listener de scroll: el listener se dispara
+	// decenas de veces por segundo y cada consulta de posición fuerza al
+	// navegador a recalcular el layout. El observador no cuesta nada mientras
+	// no pasa nada, y cada elemento se deja de observar apenas se revela.
+	let observador: IntersectionObserver | null = null;
+
+	function initRevelados() {
+		observador?.disconnect();
+
+		const elementos = document.querySelectorAll<HTMLElement>('[data-revelar]');
+		if (elementos.length === 0) return;
+
+		const revelarTodo = () => elementos.forEach((el) => el.classList.add('revelado'));
+
+		// Sin soporte, o con "reducir movimiento" activo: se muestra todo de una
+		// vez. El contenido siempre gana por sobre la animación.
+		if (!('IntersectionObserver' in window) || !document.documentElement.classList.contains('anim')) {
+			revelarTodo();
+			return;
+		}
+
+		try {
+			observador = new IntersectionObserver(
+				(entradas, obs) => {
+					for (const entrada of entradas) {
+						if (!entrada.isIntersecting) continue;
+						entrada.target.classList.add('revelado');
+						obs.unobserve(entrada.target); // ya cumplió: se deja de vigilar
+					}
+				},
+				// Se dispara cuando el elemento cruza el 10% inferior de la
+				// pantalla. Con rootMargin en vez de threshold funciona igual
+				// para una tarjeta chica que para una sección más alta que la
+				// propia ventana.
+				{ threshold: 0, rootMargin: '0px 0px -10% 0px' },
+			);
+			elementos.forEach((el) => observador!.observe(el));
+		} catch {
+			revelarTodo();
+		}
+	}
+
+	document.addEventListener('astro:page-load', initRevelados);
+</script>
 
 <script>
 	// Handler global de "Agregar al carrito". Delegación en document: un solo

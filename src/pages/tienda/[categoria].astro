@@ -36,6 +36,14 @@ interface Props {
 }
 
 const { category, categorias, products, totalCatalogo } = Astro.props as Props;
+
+// La descripción de categoría en Woo puede traer HTML del editor; se limpia
+// antes de usarla como bajada de texto plano bajo el título.
+const descripcion = (category.description || '')
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/&[a-z]+;|&#\d+;/gi, ' ')
+    .replace(/\s+/g, ' ')
+    .trim() || undefined;
 ---
 
 <Layout title={category.name}>
@@ -46,5 +54,6 @@ const { category, categorias, products, totalCatalogo } = Astro.props as Props;
         currentSlug={category.slug}
         badge={category.name}
         totalCatalogo={totalCatalogo}
+        description={descripcion}
     />
 </Layout>

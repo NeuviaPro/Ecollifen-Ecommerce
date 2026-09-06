@@ -99,6 +99,120 @@
   --color-ring: var(--color-green-600); /* foco */
 }
 
+/* ===================================================================
+   MOVIMIENTO
+
+   Regla única y no negociable: solo se animan `opacity` y `transform`.
+   Son las dos propiedades que el navegador resuelve en el compositor, sin
+   recalcular layout ni repintar. Animar `width`, `height`, `top` o `margin`
+   obliga a rehacer el layout en CADA fotograma y es lo que hace que una
+   página se sienta pesada. Los colores sí se transicionan, pero solo en
+   respuesta a un evento puntual (hover/foco), nunca en bucle.
+
+   No hay ninguna animación infinita en el sitio: todas responden a un
+   evento (entrar en pantalla, hover, carga) y terminan.
+   =================================================================== */
+
+/* Entrada al entrar en pantalla: aparece subiendo un poco. */
+@keyframes revelar {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Barrido de luz sobre un botón al pasar el mouse. */
+@keyframes brillo {
+  from {
+    transform: translateX(-120%);
+  }
+  to {
+    transform: translateX(120%);
+  }
+}
+
+/* La línea dorada del hero se dibuja de izquierda a derecha.
+   scaleX en vez de animar el ancho: mismo efecto, sin tocar el layout. */
+@keyframes crecer-linea {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+@layer components {
+  /* El estado oculto SOLO se aplica si el JS confirmó que puede animar
+     (clase `anim` en <html>, ver Layout.astro). Sin JS, o con "reducir
+     movimiento" activado, el contenido se ve normal desde el primer
+     pintado: nunca queda una sección invisible por un fallo de script. */
+  html.anim [data-revelar] {
+    opacity: 0;
+  }
+
+  html.anim [data-revelar].revelado {
+    opacity: 1;
+    /* `backwards` y NO `forwards`: mantiene el estado inicial durante el
+       retraso del escalonado, pero al terminar suelta el control de
+       `transform`. Con `forwards`/`both` la animación terminada seguiría
+       fijando `transform: none` y ganaría en la cascada por sobre cualquier
+       `hover:-translate-y` de la misma tarjeta: el hover dejaría de moverse.
+       La opacidad final la sostiene la declaración de arriba, no el relleno. */
+    animation: revelar 0.55s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+    animation-delay: var(--retraso, 0ms);
+  }
+
+  /* Botón con barrido de luz al pasar el mouse. El brillo vive en un
+     ::after, así se anima un transform aislado y no el botón entero. */
+  .brillo-cta {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .brillo-cta::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: linear-gradient(
+      105deg,
+      transparent 35%,
+      rgb(255 255 255 / 0.38) 50%,
+      transparent 65%
+    );
+    transform: translateX(-120%);
+  }
+
+  .brillo-cta:hover::after {
+    animation: brillo 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  html.anim .linea-hero {
+    transform-origin: left;
+    animation: crecer-linea 0.7s cubic-bezier(0.22, 1, 0.36, 1) 0.15s backwards;
+  }
+}
+
+/* Respeto por "reducir movimiento" del sistema operativo.
+   Se excluye .swiper-wrapper: forzarle duración 0 no lo detiene, lo vuelve
+   un parpadeo frenético. Los carruseles se desactivan por JS (ver Hero.astro
+   y DestacadosAgricultura.astro), que es la forma correcta de detenerlos. */
+@media (prefers-reduced-motion: reduce) {
+  *:not(.swiper-wrapper),
+  *:not(.swiper-wrapper)::before,
+  *:not(.swiper-wrapper)::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
 /* Estilos base: aplican la identidad a toda la página. */
 @layer base {
   body {
