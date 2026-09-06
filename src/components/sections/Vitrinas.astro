@@ -67,7 +67,7 @@ for (const vitrina of vitrinas) {
 
 {tarjetas.length > 0 && (
     <section class="mx-auto max-w-6xl px-6 py-14">
-        <div class="mb-6 flex items-end justify-between gap-4" data-revelar>
+        <div class="mb-6 flex items-end justify-between gap-4" data-anim>
             <div>
                 <p class="font-mono text-[11px] tracking-[0.16em] text-isotipo">ENTRA AL CATÁLOGO</p>
                 <h2 class="mt-1.5 font-display text-3xl font-semibold text-primary">
@@ -80,12 +80,12 @@ for (const vitrina of vitrinas) {
             </a>
         </div>
 
-        <div class="grid grid-cols-1 gap-5 sm:grid-cols-3">
-            {tarjetas.map((tarjeta, i) => (
+        {/* Un solo atributo en la grilla y las 3 tarjetas entran en cascada:
+            ya no hace falta un --retraso calculado tarjeta por tarjeta. */}
+        <div class="grid grid-cols-1 gap-5 sm:grid-cols-3" data-anim-stagger>
+            {tarjetas.map((tarjeta) => (
                 <a
                     href={`/tienda/${tarjeta.slug}`}
-                    data-revelar
-                    style={`--retraso: ${i * 90}ms`}
                     class="group relative flex h-65 items-end overflow-hidden rounded-2xl bg-[repeating-linear-gradient(135deg,#d9e2d3_0_14px,#e3ebdd_14px_28px)] transition-transform duration-300 ease-out hover:-translate-y-1.5"
                 >
                     {tarjeta.foto && (

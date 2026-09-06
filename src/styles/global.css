@@ -111,19 +111,20 @@
 
    No hay ninguna animación infinita en el sitio: todas responden a un
    evento (entrar en pantalla, hover, carga) y terminan.
-   =================================================================== */
 
-/* Entrada al entrar en pantalla: aparece subiendo un poco. */
-@keyframes revelar {
-  from {
-    opacity: 0;
-    transform: translateY(14px);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
-}
+   REPARTO DE TRABAJO — para saber siempre dónde tocar:
+
+     · CSS (este archivo)  → estados: hover, foco, y el estado inicial de lo
+                             que va a entrar. Es gratis, no necesita JS y
+                             responde al instante. Un hover en GSAP obligaría
+                             a poner un listener por botón: eso es el código
+                             espagueti que queremos evitar.
+
+     · GSAP (@/lib/animaciones) → coreografía: entradas al hacer scroll,
+                             cascadas, secuencias, entrada y salida de modales.
+                             Todo lo que tenga orden, retraso o dependa de la
+                             posición del scroll.
+   =================================================================== */
 
 /* Barrido de luz sobre un botón al pasar el mouse. */
 @keyframes brillo {
@@ -147,24 +148,20 @@
 }
 
 @layer components {
-  /* El estado oculto SOLO se aplica si el JS confirmó que puede animar
-     (clase `anim` en <html>, ver Layout.astro). Sin JS, o con "reducir
-     movimiento" activado, el contenido se ve normal desde el primer
-     pintado: nunca queda una sección invisible por un fallo de script. */
-  html.anim [data-revelar] {
-    opacity: 0;
-  }
+  /* Estado inicial de lo que va a entrar animado.
 
-  html.anim [data-revelar].revelado {
-    opacity: 1;
-    /* `backwards` y NO `forwards`: mantiene el estado inicial durante el
-       retraso del escalonado, pero al terminar suelta el control de
-       `transform`. Con `forwards`/`both` la animación terminada seguiría
-       fijando `transform: none` y ganaría en la cascada por sobre cualquier
-       `hover:-translate-y` de la misma tarjeta: el hover dejaría de moverse.
-       La opacidad final la sostiene la declaración de arriba, no el relleno. */
-    animation: revelar 0.55s cubic-bezier(0.22, 1, 0.36, 1) backwards;
-    animation-delay: var(--retraso, 0ms);
+     Lo pinta el CSS y no GSAP a propósito: GSAP recién puede actuar cuando su
+     JS terminó de cargar, y para entonces el navegador ya pintó el elemento
+     en su sitio. Se vería aparecer y recién después animarse. Con la regla
+     aquí, nace oculto en el primer pintado.
+
+     Y SOLO se aplica si el script en línea del Layout confirmó que se puede
+     animar (clase `anim` en <html>). Sin JS, con "reducir movimiento", o si
+     GSAP falla al cargar, el contenido se ve normal: nunca queda una sección
+     invisible por culpa de un script. */
+  html.anim [data-anim],
+  html.anim [data-anim-stagger] > * {
+    opacity: 0;
   }
 
   /* Botón con barrido de luz al pasar el mouse. El brillo vive en un

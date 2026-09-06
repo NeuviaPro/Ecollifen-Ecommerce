@@ -1,18 +1,70 @@
 ---
 import Layout from '@/layouts/Layout.astro';
-import { getAllWooProducts } from '@/lib/api';
+import ProductCard from '@/components/product/ProductCard.astro';
+import { getAllWooProducts, getAllWooCategories } from '@/lib/api';
 import type { WooProduct } from '@/lib/api';
+import { asesoriaHref, hayWhatsApp } from '@/lib/contacto';
 
 // Una página estática por producto de WooCommerce.
 export async function getStaticPaths() {
-    const products = await getAllWooProducts();
+    // La constante va DENTRO: Astro extrae getStaticPaths a su propio módulo y
+    // lo ejecuta antes que el componente, así que no ve nada del frontmatter.
+    const RELACIONADOS = 4;
+
+    const [products, categorias] = await Promise.all([
+        getAllWooProducts(),
+        getAllWooCategories(),
+    ]);
+
+    // Índices calculados UNA sola vez y reutilizados por las ~90 fichas. Armar
+    // los relacionados recorriendo el catálogo entero dentro de cada página
+    // sería el mismo trabajo repetido noventa veces.
+    const porCategoria = new Map<number, WooProduct[]>();
+    for (const p of products) {
+        for (const c of p.categories ?? []) {
+            const lista = porCategoria.get(c.id);
+            if (lista) lista.push(p);
+            else porCategoria.set(c.id, [p]);
+        }
+    }
+    const padreDe = new Map(categorias.map((c) => [c.id, c.parent]));
+
+    // "Podrían interesarte" = productos de las MISMAS categorías. Si la
+    // categoría es muy chica, se completa con los de su categoría padre, que
+    // siguen siendo del mismo rubro. No se rellena nunca con productos al azar:
+    // sugerir cualquier cosa bajo ese título es mentirle al cliente.
+    const relacionadosDe = (producto: WooProduct): WooProduct[] => {
+        const propias = (producto.categories ?? []).map((c) => c.id);
+        const padres = propias.map((id) => padreDe.get(id) ?? 0).filter((id) => id > 0);
+
+        const vistos = new Set<number>([producto.id]);
+        const salida: WooProduct[] = [];
+
+        for (const catId of [...propias, ...padres]) {
+            for (const candidato of porCategoria.get(catId) ?? []) {
+                if (vistos.has(candidato.id)) continue;
+                vistos.add(candidato.id);
+                salida.push(candidato);
+            }
+        }
+
+        // Lo que se puede comprar hoy, primero.
+        salida.sort((a, b) =>
+            Number(b.stock_status === 'instock') - Number(a.stock_status === 'instock'));
+
+        return salida.slice(0, RELACIONADOS);
+    };
+
     return products.map((product) => ({
         params: { id: String(product.id) },
-        props: { product },
+        props: { product, relacionados: relacionadosDe(product) },
     }));
 }
 
-const { product } = Astro.props as { product: WooProduct };
+const { product, relacionados } = Astro.props as {
+    product: WooProduct,
+    relacionados: WooProduct[],
+};
 
 const money = new Intl.NumberFormat('es-CL', {
     style: 'currency',
@@ -20,19 +72,26 @@ const money = new Intl.NumberFormat('es-CL', {
     maximumFractionDigits: 0,
 });
 
-const estados: Record<string, { label: string, color: string }> = {
-    instock:     { label: 'En stock',    color: 'text-isotipo' },
-    onbackorder: { label: 'Bajo pedido', color: 'text-gold-700' },
-    outofstock:  { label: 'Sin stock',   color: 'text-muted' },
+const estados: Record<string, { label: string, chip: string }> = {
+    instock:     { label: 'En stock',    chip: 'border-green-200 bg-green-50 text-green-700' },
+    onbackorder: { label: 'Bajo pedido', chip: 'border-gold-200 bg-gold-50 text-gold-700' },
+    outofstock:  { label: 'Sin stock',   chip: 'border-border bg-surface-alt text-muted' },
 };
 const estado = estados[product.stock_status] ?? estados.outofstock;
 const enStock = product.stock_status === 'instock';
 const categoria = product.categories?.[0];
 const mainImage = product.images?.[0];
 
+// Descuento real: solo si Woo trae un precio normal mayor que el vigente.
+const precioActual = Number(product.price);
+const precioNormal = Number(product.regular_price);
+const hayDescuento = product.on_sale && precioNormal > precioActual && precioActual > 0;
+const porcentaje = hayDescuento ? Math.round((1 - precioActual / precioNormal) * 100) : 0;
+
 // Ficha técnica: se arma con los atributos visibles del producto en Woo, más
-// peso y dimensiones si están cargados. Hoy ningún producto tiene atributos,
-// así que el bloque simplemente no se muestra — nada de tablas vacías.
+// peso y dimensiones si están cargados. Hoy la mayoría no tiene atributos, así
+// que solo se muestran las filas que existen de verdad — nada de campos con
+// "—" de relleno para simular una ficha completa.
 const especificaciones: { k: string, v: string }[] = [
     ...(product.attributes ?? [])
         .filter((a) => a.visible && a.options?.length)
@@ -48,6 +107,25 @@ if (d?.length && d?.width && d?.height) {
     especificaciones.push({ k: 'Dimensiones', v: `${d.length} × ${d.width} × ${d.height} cm` });
 }
 
+if (product.sku) especificaciones.push({ k: 'SKU', v: product.sku });
+if (categoria) especificaciones.push({ k: 'Categoría', v: categoria.name });
+
+// Respaldos que ya son promesa declarada del negocio en todo el sitio (la tira
+// del hero y la barra superior). Se repiten aquí porque es el momento exacto en
+// que alguien decide comprar. NO se inventan plazos, costos ni garantías: eso
+// todavía no está definido con el cliente.
+const respaldos = [
+    { titulo: 'Asesoría antes de comprar', detalle: 'Te ayudamos a elegir la solución correcta.', icono: 'chat' },
+    { titulo: 'Servicio técnico y postventa', detalle: 'Lo que vendemos, lo seguimos atendiendo.', icono: 'gear' },
+    { titulo: 'Despacho a todo Chile', detalle: 'Coordinamos el envío según tu ubicación.', icono: 'truck' },
+];
+
+// Consulta con el producto ya escrito: quien pregunta no tiene que explicar
+// cuál es, y quien responde sabe de entrada de qué se trata.
+const consultaHref = asesoriaHref(
+    `Hola, quiero asesoría por el producto "${product.name}"${product.sku ? ` (SKU ${product.sku})` : ''}.`,
+);
+
 // Estilos base para el HTML que viene de WordPress (sin plugin de tipografía).
 const contenidoWP = "leading-relaxed [&_p]:mb-3 [&_ul]:my-3 [&_ul]:list-disc [&_ul]:pl-5 [&_li]:mb-1 [&_strong]:font-semibold [&_a]:text-isotipo [&_a]:underline";
 
@@ -58,137 +136,301 @@ const descripcionOG = (product.short_description || product.description || '')
     .replace(/&[a-z]+;|&#\d+;/gi, ' ')
     .replace(/\s+/g, ' ')
     .trim()
-    .slice(0, 160) || `${money.format(Number(product.price))} · ${estado.label}. Cotiza con asesoría técnica en Ecollifén.`;
+    .slice(0, 160) || `${money.format(precioActual)} · ${estado.label}. Cotiza con asesoría técnica en Ecollifén.`;
 ---
 
 <Layout title={product.name} description={descripcionOG} image={mainImage?.src} type="product">
-    <div class="mx-auto max-w-6xl px-6 py-10">
-        <nav class="font-mono text-xs text-muted">
-            <a href="/" class="hover:text-primary">Inicio</a> /
-            <a href="/tienda" class="hover:text-primary">Tienda</a>
-            {categoria && (
-                <Fragment> / <a href={`/tienda/${categoria.slug}`} class="hover:text-primary">{categoria.name}</a></Fragment>
-            )}
-            / <span class="text-foreground">{product.name}</span>
-        </nav>
+    <div class="ficha-fondo">
+        <div class="mx-auto max-w-6xl px-6 py-10">
+            <nav class="font-mono text-xs text-muted">
+                <a href="/" class="transition-colors hover:text-primary">Inicio</a> /
+                <a href="/tienda" class="transition-colors hover:text-primary">Tienda</a>
+                {categoria && (
+                    <Fragment> / <a href={`/tienda/${categoria.slug}`} class="transition-colors hover:text-primary">{categoria.name}</a></Fragment>
+                )}
+                / <span class="text-foreground">{product.name}</span>
+            </nav>
 
-        <div class="mt-6 grid gap-10 lg:grid-cols-2">
-            {/* Galería */}
-            <div>
-                {/* Mismo criterio que las tarjetas: fondo blanco para que las
-                    fotos de catálogo (90% con fondo blanco) no se vean pegadas. */}
-                <div class="aspect-square overflow-hidden rounded-2xl border border-border bg-white p-4">
-                    {mainImage ? (
-                        <img data-main-image src={mainImage.src} alt={mainImage.alt || product.name} class="h-full w-full object-contain" />
-                    ) : (
-                        <div class="flex h-full items-center justify-center text-muted">Sin imagen</div>
+            <div class="mt-6 grid gap-10 lg:grid-cols-2 lg:gap-14">
+                {/* ---------- Galería ---------- */}
+                <div data-anim="fade-right">
+                    {/* Mismo criterio que las tarjetas: fondo blanco para que las
+                        fotos de catálogo (90% con fondo blanco) no se vean pegadas. */}
+                    <div class="relative aspect-square overflow-hidden rounded-2xl border border-border bg-white p-6">
+                        {hayDescuento && (
+                            <span class="absolute top-4 left-4 z-10 rounded-md bg-cta px-2.5 py-1.5 font-mono text-[11px] font-semibold text-cta-contrast">
+                                −{porcentaje}%
+                            </span>
+                        )}
+                        {mainImage ? (
+                            <img
+                                data-main-image
+                                src={mainImage.src}
+                                alt={mainImage.alt || product.name}
+                                class="h-full w-full object-contain"
+                            />
+                        ) : (
+                            <div class="flex h-full items-center justify-center text-muted">Sin imagen</div>
+                        )}
+                    </div>
+
+                    {product.images.length > 1 && (
+                        <div class="mt-3 flex flex-wrap gap-3">
+                            {product.images.map((img, i) => (
+                                <button
+                                    type="button"
+                                    data-thumb={img.src}
+                                    aria-label={`Ver imagen ${i + 1} de ${product.images.length}`}
+                                    class:list={[
+                                        "size-18 overflow-hidden rounded-lg border-[1.5px] bg-white p-1.5 transition-colors",
+                                        i === 0 ? "border-isotipo" : "border-border hover:border-green-300",
+                                    ]}
+                                >
+                                    <img src={img.src} alt="" class="h-full w-full object-contain" loading="lazy" />
+                                </button>
+                            ))}
+                        </div>
                     )}
                 </div>
-                {product.images.length > 1 && (
-                    <div class="mt-3 flex flex-wrap gap-3">
-                        {product.images.map((img) => (
-                            <button
-                                type="button"
-                                data-thumb={img.src}
-                                class="size-16 overflow-hidden rounded-lg border border-border bg-white p-1 transition-colors hover:border-primary"
-                            >
-                                <img src={img.src} alt="" class="h-full w-full object-contain" loading="lazy" />
-                            </button>
+
+                {/* ---------- Panel de compra ----------
+                    Los data-* de este contenedor los usa PreciosEnVivo para
+                    refrescar precio y stock contra la Store API al cargar. */}
+                <div
+                    data-id={product.id}
+                    data-price={product.price}
+                    data-stock={product.stock_status}
+                    data-anim="fade-left"
+                    data-anim-delay="0.1"
+                >
+                    {categoria && (
+                        <a href={`/tienda/${categoria.slug}`} class="font-mono text-xs tracking-wide text-isotipo uppercase transition-colors hover:text-primary">
+                            {categoria.name}
+                        </a>
+                    )}
+                    <h1 class="mt-2 font-display text-3xl leading-tight font-semibold text-balance text-primary md:text-4xl">
+                        {product.name}
+                    </h1>
+
+                    <div class="mt-4 flex flex-wrap items-center gap-3">
+                        <span
+                            data-estado
+                            class:list={["inline-flex items-center gap-1.5 rounded-full border px-3 py-1 font-mono text-[11px] font-medium", estado.chip]}
+                        >&#9679; {estado.label}</span>
+                        {product.sku && (
+                            <span class="font-mono text-[11px] text-muted">SKU · {product.sku}</span>
+                        )}
+                    </div>
+
+                    <div class="mt-6 flex flex-wrap items-baseline gap-3">
+                        <span data-precio class="text-4xl leading-none font-bold tracking-tight text-green-700 tabular-nums">
+                            {money.format(precioActual)}
+                        </span>
+                        {hayDescuento && (
+                            <span class="text-lg text-muted line-through tabular-nums">{money.format(precioNormal)}</span>
+                        )}
+                    </div>
+
+                    {product.short_description && (
+                        <div class:list={["mt-5 text-muted", contenidoWP]} set:html={product.short_description} />
+                    )}
+
+                    {/* Cantidad + compra. El contenedor data-compra es lo que lee
+                        el handler global del carrito para saber cuántas unidades.
+                        Ambos llevan data-btn-agregar porque PreciosEnVivo los
+                        oculta juntos si el stock cambió desde el último build. */}
+                    <div data-compra class="mt-7 flex flex-wrap items-stretch gap-3">
+                        <div class="flex items-center rounded-lg border border-border bg-surface" hidden={!enStock} data-btn-agregar>
+                            <button type="button" data-cantidad-menos aria-label="Quitar una unidad" class="flex size-11 items-center justify-center text-lg text-muted transition-colors hover:text-primary">−</button>
+                            <input
+                                type="number"
+                                data-cantidad
+                                value="1"
+                                min="1"
+                                max="99"
+                                aria-label="Cantidad"
+                                class="w-12 border-0 bg-transparent text-center font-semibold text-foreground tabular-nums [appearance:textfield] focus:outline-none [&::-webkit-inner-spin-button]:appearance-none"
+                            />
+                            <button type="button" data-cantidad-mas aria-label="Agregar una unidad" class="flex size-11 items-center justify-center text-lg text-muted transition-colors hover:text-primary">+</button>
+                        </div>
+
+                        <button
+                            type="button"
+                            data-add-to-cart={product.id}
+                            data-btn-agregar
+                            hidden={!enStock}
+                            class="brillo-cta flex-1 rounded-lg bg-cta px-7 py-3.5 font-semibold text-cta-contrast transition-colors hover:bg-green-600"
+                        >
+                            Agregar al carrito
+                        </button>
+
+                        <a
+                            href="/contacto"
+                            data-btn-cotizar
+                            hidden={enStock}
+                            class="brillo-cta flex-1 rounded-lg bg-cta px-7 py-3.5 text-center font-semibold text-cta-contrast transition-colors hover:bg-green-600"
+                        >
+                            Cotizar disponibilidad
+                        </a>
+                    </div>
+
+                    <a
+                        href={consultaHref}
+                        class="mt-3 flex items-center justify-center gap-2 rounded-lg border-[1.5px] border-border px-7 py-3.5 font-semibold text-primary transition-colors hover:bg-surface-alt"
+                    >
+                        <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.5a8.4 8.4 0 0 1-8.5 8.5 8.6 8.6 0 0 1-3.9-.9L3 21l1.9-5.6A8.5 8.5 0 1 1 21 11.5Z"/></svg>
+                        {hayWhatsApp ? 'Consultar por WhatsApp' : 'Consultar por este producto'}
+                    </a>
+
+                    {/* Respaldos: el momento de decidir la compra es donde más
+                        pesa saber que hay alguien detrás del producto. */}
+                    <ul class="mt-8 flex flex-col divide-y divide-border border-y border-border">
+                        {respaldos.map((r) => (
+                            <li class="flex items-start gap-3.5 py-3.5">
+                                <span class="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-full bg-green-50 text-isotipo">
+                                    {r.icono === 'chat' && <svg class="size-4.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.4 8.4 0 0 1-8.5 8.5 8.6 8.6 0 0 1-3.9-.9L3 21l1.9-5.6A8.5 8.5 0 1 1 21 11.5Z"/></svg>}
+                                    {r.icono === 'gear' && <svg class="size-4.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-2.7 1.1V21a2 2 0 1 1-4 0v-.1a1.6 1.6 0 0 0-2.7-1.1l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0-1.1-2.7H3a2 2 0 1 1 0-4h.1a1.6 1.6 0 0 0 1.1-2.7l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 1.8.3H9a1.6 1.6 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.6 1.6 0 0 0 2.7 1.1l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8V9a1.6 1.6 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1Z"/></svg>}
+                                    {r.icono === 'truck' && <svg class="size-4.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 17h4V5H2v12h3"/><path d="M14 8h4l3 4v5h-3"/><circle cx="7.5" cy="17.5" r="1.5"/><circle cx="17.5" cy="17.5" r="1.5"/></svg>}
+                                </span>
+                                <div class="min-w-0">
+                                    <p class="text-sm font-semibold text-foreground">{r.titulo}</p>
+                                    <p class="text-[13px] leading-snug text-muted">{r.detalle}</p>
+                                </div>
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+            </div>
+
+            {/* ---------- Descripción + ficha técnica ----------
+                En dos columnas a propósito: en una sola, la descripción de Woo
+                quedaba como una franja angosta de texto con media pantalla
+                vacía al lado. */}
+            {(product.description || especificaciones.length > 0) && (
+                <div class="mt-16 grid gap-10 lg:grid-cols-[1fr_340px]">
+                    <div data-anim>
+                        {product.description && (
+                            <Fragment>
+                                <h2 class="font-display text-2xl font-semibold text-primary">Descripción</h2>
+                                <div class="mt-1.5 h-1 w-12 rounded-full bg-gold-500"></div>
+                                <div class:list={["mt-5 max-w-prose text-foreground", contenidoWP]} set:html={product.description} />
+                            </Fragment>
+                        )}
+                    </div>
+
+                    <div class="flex flex-col gap-4" data-anim="fade-left" data-anim-delay="0.1">
+                        {especificaciones.length > 0 && (
+                            <div class="rounded-2xl border border-border bg-surface p-6">
+                                <h2 class="font-mono text-xs tracking-[0.16em] text-muted">FICHA TÉCNICA</h2>
+                                <dl class="mt-4 divide-y divide-border">
+                                    {especificaciones.map((spec) => (
+                                        <div class="flex items-baseline justify-between gap-6 py-2.5">
+                                            <dt class="text-sm text-muted">{spec.k}</dt>
+                                            <dd class="text-right text-sm font-medium text-foreground">{spec.v}</dd>
+                                        </div>
+                                    ))}
+                                </dl>
+                            </div>
+                        )}
+
+                        <div class="rounded-2xl border border-earth-500/20 bg-earth-50 p-6">
+                            <p class="font-mono text-[10px] tracking-[0.08em] text-substrate">¿DUDAS CON ESTE PRODUCTO?</p>
+                            <p class="mt-2.5 text-sm leading-relaxed text-foreground">
+                                Si no estás seguro de que sea lo que necesitas, cuéntanos para
+                                qué lo vas a usar y te decimos si es el correcto.
+                            </p>
+                            <a href={consultaHref} class="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-substrate transition-colors hover:text-earth-700">
+                                Pedir asesoría →
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* ---------- Podrían interesarte ---------- */}
+            {relacionados.length > 0 && (
+                <section class="mt-16 border-t border-border pt-12">
+                    <div class="mb-6 flex items-end justify-between gap-4" data-anim>
+                        <div>
+                            <p class="font-mono text-[11px] tracking-[0.16em] text-isotipo">DE LA MISMA CATEGORÍA</p>
+                            <h2 class="mt-1.5 font-display text-2xl font-semibold text-primary md:text-3xl">
+                                Productos que podrían interesarte
+                            </h2>
+                        </div>
+                        {categoria && (
+                            <a href={`/tienda/${categoria.slug}`} class="group text-sm font-medium whitespace-nowrap text-isotipo transition-colors hover:text-primary">
+                                Ver {categoria.name}
+                                <span class="inline-block transition-transform duration-300 group-hover:translate-x-1">→</span>
+                            </a>
+                        )}
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-5 lg:grid-cols-4" data-anim-stagger>
+                        {relacionados.map((p) => (
+                            <ProductCard product={p} category={p.categories?.[0]?.name} />
                         ))}
                     </div>
-                )}
-            </div>
-
-            {/* Información. Los data-* los usa PreciosEnVivo para refrescar
-                precio y stock contra la Store API al cargar la página. */}
-            <div data-id={product.id} data-price={product.price} data-stock={product.stock_status}>
-                {categoria && (
-                    <a href={`/tienda/${categoria.slug}`} class="font-mono text-xs tracking-wide text-isotipo uppercase">
-                        {categoria.name}
-                    </a>
-                )}
-                <h1 class="mt-2 font-display text-3xl font-semibold text-balance text-primary md:text-4xl">
-                    {product.name}
-                </h1>
-
-                <div class="mt-3 flex items-center gap-4 font-mono text-xs">
-                    {product.sku && <span class="text-muted">SKU · {product.sku}</span>}
-                    <span data-estado class:list={["flex items-center gap-1", estado.color]}>&#9679; {estado.label}</span>
-                </div>
-
-                <div class="mt-5 flex items-baseline gap-3">
-                    <span data-precio class="text-3xl font-semibold text-green-700 tabular-nums">{money.format(Number(product.price))}</span>
-                    {product.on_sale && product.regular_price && (
-                        <span class="text-lg text-muted line-through">{money.format(Number(product.regular_price))}</span>
-                    )}
-                </div>
-
-                {product.short_description && (
-                    <div class:list={["mt-5 text-muted", contenidoWP]} set:html={product.short_description} />
-                )}
-
-                <div class="mt-7 flex flex-wrap gap-3">
-                    <button
-                        type="button"
-                        data-add-to-cart={product.id}
-                        data-btn-agregar
-                        hidden={!enStock}
-                        class="rounded-lg bg-cta px-7 py-3.5 font-semibold text-cta-contrast transition-colors hover:bg-green-600"
-                    >
-                        Agregar al carrito
-                    </button>
-                    <a
-                        href="/contacto"
-                        data-btn-cotizar
-                        hidden={enStock}
-                        class="inline-flex items-center rounded-lg bg-cta px-7 py-3.5 font-semibold text-cta-contrast transition-colors hover:bg-green-600"
-                    >
-                        Cotizar
-                    </a>
-                    <a
-                        href="/contacto"
-                        class="inline-flex items-center rounded-lg border-[1.5px] border-border px-7 py-3.5 font-semibold text-primary transition-colors hover:bg-surface-alt"
-                    >
-                        Solicitar asesoría técnica
-                    </a>
-                </div>
-
-                {especificaciones.length > 0 && (
-                    <div class="mt-9 rounded-2xl border border-border bg-surface p-6">
-                        <h2 class="font-mono text-xs tracking-[0.16em] text-muted">FICHA TÉCNICA</h2>
-                        <dl class="mt-4 divide-y divide-border">
-                            {especificaciones.map((spec) => (
-                                <div class="flex items-baseline justify-between gap-6 py-2.5">
-                                    <dt class="text-sm text-muted">{spec.k}</dt>
-                                    <dd class="text-right text-sm font-medium text-foreground tabular-nums">{spec.v}</dd>
-                                </div>
-                            ))}
-                        </dl>
-                    </div>
-                )}
-            </div>
+                </section>
+            )}
         </div>
-
-        {product.description && (
-            <div class="mt-14 max-w-3xl">
-                <h2 class="font-display text-2xl font-semibold text-primary">Descripción</h2>
-                <div class:list={["mt-4 text-foreground", contenidoWP]} set:html={product.description} />
-            </div>
-        )}
     </div>
 </Layout>
 
-<script>
-    // Galería: al tocar una miniatura, cambia la imagen principal.
-    function initFicha() {
-        const main = document.querySelector('[data-main-image]');
-        if (!main) return;
-        document.querySelectorAll('[data-thumb]').forEach((btn) => {
-            btn.addEventListener('click', () => {
-                const src = btn.getAttribute('data-thumb');
-                if (src) (main as HTMLImageElement).src = src;
-            });
-        });
+<style>
+    /* Mismo lavado radial que la tienda, para que la ficha no se sienta un
+       plano de un solo color. Es decoración: va detrás de todo. */
+    .ficha-fondo {
+        background-color: var(--color-background);
+        background-image:
+            radial-gradient(56rem 32rem at 10% 0%, color-mix(in srgb, var(--color-cta) 9%, transparent), transparent 60%),
+            radial-gradient(44rem 28rem at 100% 100%, color-mix(in srgb, var(--color-gold-500) 7%, transparent), transparent 55%);
+        background-repeat: no-repeat;
     }
+</style>
+
+<script>
+    // Galería y selector de cantidad. La transición de la imagen usa el helper
+    // del estándar de animación, no un tween suelto: si algún día cambia la
+    // curva del sitio, esto cambia con ella.
+    import { aparecer } from '@/lib/animaciones';
+
+    function initFicha() {
+        const main = document.querySelector<HTMLImageElement>('[data-main-image]');
+        const miniaturas = document.querySelectorAll<HTMLButtonElement>('[data-thumb]');
+
+        if (main && miniaturas.length > 0) {
+            miniaturas.forEach((btn) => {
+                btn.addEventListener('click', () => {
+                    const src = btn.dataset.thumb;
+                    if (!src || main.src === src) return;
+
+                    main.src = src;
+                    aparecer(main, { y: 0, scale: 1.02, duration: 0.35 });
+
+                    // Marca cuál se está viendo.
+                    miniaturas.forEach((b) => {
+                        b.classList.toggle('border-isotipo', b === btn);
+                        b.classList.toggle('border-border', b !== btn);
+                    });
+                });
+            });
+        }
+
+        // Cantidad: los botones ± con el input como única fuente de verdad.
+        const campo = document.querySelector<HTMLInputElement>('[data-cantidad]');
+        if (!campo) return;
+
+        const mueve = (paso: number) => {
+            const actual = Number(campo.value) || 1;
+            campo.value = String(Math.min(99, Math.max(1, actual + paso)));
+        };
+
+        document.querySelector('[data-cantidad-menos]')?.addEventListener('click', () => mueve(-1));
+        document.querySelector('[data-cantidad-mas]')?.addEventListener('click', () => mueve(1));
+
+        // Escribir a mano un valor inválido no debe llegar al carrito.
+        campo.addEventListener('change', () => mueve(0));
+    }
+
     document.addEventListener('astro:page-load', initFicha);
 </script>

@@ -68,7 +68,7 @@ const tituloCompleto = `Ecollifén | ${title}`;
 		
 		{/* Marca el documento como "puede animar" ANTES del primer pintado, por
 			eso va en línea y no en un <script> normal (que es diferido). Sin esta
-			clase, las secciones con data-revelar se ven normales: el contenido
+			clase, las secciones con data-anim se ven normales: el contenido
 			nunca depende del JS para ser visible.
 
 			data-astro-rerun es obligatorio: al navegar, el ClientRouter borra
@@ -93,52 +93,12 @@ const tituloCompleto = `Ecollifén | ${title}`;
 </html>
 
 <script>
-	// Revelado al hacer scroll. Un solo observador para todo el sitio: cualquier
-	// elemento con [data-revelar] aparece al entrar en pantalla.
-	//
-	// IntersectionObserver y no un listener de scroll: el listener se dispara
-	// decenas de veces por segundo y cada consulta de posición fuerza al
-	// navegador a recalcular el layout. El observador no cuesta nada mientras
-	// no pasa nada, y cada elemento se deja de observar apenas se revela.
-	let observador: IntersectionObserver | null = null;
+	// Sistema de animación del sitio. Toda la configuración (presets, duración,
+	// curva, punto de disparo) vive en @/lib/animaciones: aquí solo se enciende.
+	// Los componentes nunca importan GSAP, solo marcan HTML con data-anim.
+	import { iniciarAnimaciones } from '@/lib/animaciones';
 
-	function initRevelados() {
-		observador?.disconnect();
-
-		const elementos = document.querySelectorAll<HTMLElement>('[data-revelar]');
-		if (elementos.length === 0) return;
-
-		const revelarTodo = () => elementos.forEach((el) => el.classList.add('revelado'));
-
-		// Sin soporte, o con "reducir movimiento" activo: se muestra todo de una
-		// vez. El contenido siempre gana por sobre la animación.
-		if (!('IntersectionObserver' in window) || !document.documentElement.classList.contains('anim')) {
-			revelarTodo();
-			return;
-		}
-
-		try {
-			observador = new IntersectionObserver(
-				(entradas, obs) => {
-					for (const entrada of entradas) {
-						if (!entrada.isIntersecting) continue;
-						entrada.target.classList.add('revelado');
-						obs.unobserve(entrada.target); // ya cumplió: se deja de vigilar
-					}
-				},
-				// Se dispara cuando el elemento cruza el 10% inferior de la
-				// pantalla. Con rootMargin en vez de threshold funciona igual
-				// para una tarjeta chica que para una sección más alta que la
-				// propia ventana.
-				{ threshold: 0, rootMargin: '0px 0px -10% 0px' },
-			);
-			elementos.forEach((el) => observador!.observe(el));
-		} catch {
-			revelarTodo();
-		}
-	}
-
-	document.addEventListener('astro:page-load', initRevelados);
+	iniciarAnimaciones();
 </script>
 
 <script>
@@ -161,11 +121,19 @@ const tituloCompleto = `Ecollifén | ${title}`;
 		const id = Number(btn.dataset.addToCart);
 		if (!id) return;
 
+		// Si el botón vive junto a un selector de cantidad (ficha de producto),
+		// se respeta lo que eligió el cliente. En el catálogo no hay selector y
+		// cae en 1, como siempre.
+		const campo = btn.closest('[data-compra]')?.querySelector('[data-cantidad]');
+		const cantidad = campo instanceof HTMLInputElement
+			? Math.min(99, Math.max(1, Number(campo.value) || 1))
+			: 1;
+
 		const original = btn.textContent;
 		btn.setAttribute('disabled', '');
 		btn.textContent = 'Agregando…';
 		try {
-			await addToCart(id, 1);
+			await addToCart(id, cantidad);
 			cartOpen.set(true);   // abrirá el drawer (paso 5)
 		} catch (error) {
 			console.error('[cart] No se pudo agregar:', error);
