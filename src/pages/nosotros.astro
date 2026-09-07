@@ -2,8 +2,10 @@
 // Página "Quiénes somos". Los textos son los aprobados por el cliente y están
 // en docs/contenido-estrategico.md: no reescribirlos sin su visto bueno.
 import Layout from '@/layouts/Layout.astro';
+
 import { Image } from 'astro:assets';
 import raizVivaImg from '@/assets/raizViva/raiz-viva.webp';
+import heroImg from '@/assets/heroes/nosotros.webp';
 import { asesoriaHref } from '@/lib/contacto';
 
 const valores = [
@@ -51,7 +53,20 @@ const publico = [
 
 <Layout title="Nosotros">
     {/* Encabezado: la experiencia como primer argumento de confianza */}
-    <section class="bg-primary text-primary-contrast">
+    <section class="relative isolate overflow-hidden bg-primary text-primary-contrast">
+        {/* Foto de fondo + velo horizontal, igual que el hero de la home:
+            oscuro a la izquierda para que el texto se lea, casi limpio a la
+            derecha para que la imagen se vea. Por eso la foto tiene el
+            sujeto en el tercio derecho. */}
+        <Image
+            src={heroImg}
+            alt=""
+            widths={[768, 1280, 1920]}
+            sizes="100vw"
+            loading="eager"
+            class="absolute inset-0 -z-10 h-full w-full object-cover"
+        />
+        <div class="absolute inset-0 -z-10 bg-[linear-gradient(90deg,rgba(10,30,16,.94)_0%,rgba(10,30,16,.72)_45%,rgba(10,30,16,.34)_100%)]"></div>
         <div class="mx-auto max-w-6xl px-6 py-16 md:py-20">
             <p class="font-mono text-xs tracking-[0.16em] text-green-300">QUIÉNES SOMOS</p>
             <h1 class="mt-4 max-w-3xl font-display text-4xl font-semibold text-balance text-white md:text-5xl">

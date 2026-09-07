@@ -420,61 +420,6 @@ const vitrinas = currentSlug ? [] : AREAS_VITRINA
     </div>
 </div>
 
-{/* Modal de vista rápida. Se rellena en JS a partir de los data-* de la
-    tarjeta sobre la que se hizo clic — sin pedir nada al servidor, y con el
-    precio/stock ya corregidos por PreciosEnVivo si aplicó. */}
-<div
-    data-qv-overlay
-    hidden
-    class="fixed inset-0 z-90 flex items-center justify-center bg-green-950/60 p-6 backdrop-blur-[3px]"
->
-    <div
-        data-qv-panel
-        role="dialog"
-        aria-modal="true"
-        aria-label="Vista rápida del producto"
-        class="relative grid w-full max-w-3xl grid-cols-1 overflow-hidden rounded-2xl bg-surface shadow-2xl sm:grid-cols-2"
-    >
-        <div class="flex items-center justify-center border-b border-border bg-white p-6 sm:border-r sm:border-b-0">
-            <img data-qv-img src="" alt="" class="max-h-80 max-w-full object-contain" />
-        </div>
-        <div class="p-7">
-            <p class="font-mono text-[11px] tracking-[0.08em] text-muted">
-                <span data-qv-cat></span> <span data-qv-sku></span>
-            </p>
-            <h3 data-qv-nombre class="mt-3 font-display text-2xl leading-tight font-semibold text-primary"></h3>
-            <div class="mt-4 flex items-baseline gap-3.5">
-                <p data-qv-precio class="text-[28px] leading-none font-bold tracking-tight text-green-700 tabular-nums"></p>
-                <span data-qv-estado class="font-mono text-[11px] font-medium"></span>
-            </div>
-            <p data-qv-desc class="mt-4 text-sm leading-relaxed text-muted"></p>
-            <div class="mt-6 flex gap-2.5">
-                <button
-                    type="button"
-                    data-qv-agregar
-                    class="flex-1 rounded-lg bg-cta py-3 text-center font-semibold text-cta-contrast transition-colors hover:bg-green-600"
-                >Agregar</button>
-                <a
-                    data-qv-cotizar
-                    href="/contacto"
-                    class="flex-1 rounded-lg border-[1.5px] border-border py-3 text-center font-semibold text-green-700 transition-colors hover:bg-surface-alt"
-                >Cotizar</a>
-                <a data-qv-ficha href="#" class="flex items-center justify-center rounded-lg border-[1.5px] border-border px-4 font-semibold text-primary transition-colors hover:bg-surface-alt">
-                    Ver ficha
-                </a>
-            </div>
-        </div>
-        <button
-            type="button"
-            data-qv-cerrar
-            aria-label="Cerrar vista rápida"
-            class="absolute top-3.5 right-3.5 flex size-9 items-center justify-center rounded-full border border-border bg-surface text-muted transition-colors hover:bg-surface-alt hover:text-primary"
-        >
-            <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg>
-        </button>
-    </div>
-</div>
-
 <style>
     /* Lavado radial tenue: Verde Agro arriba-izquierda, Dorado abajo-derecha,
        en muy baja opacidad sobre el crema base. Es decoración, así que va
@@ -658,74 +603,6 @@ const vitrinas = currentSlug ? [] : AREAS_VITRINA
             current = 1;
             render();
         }));
-
-        // --- Vista rápida ---
-        const qvOverlay = document.querySelector('[data-qv-overlay]');
-        const qvPanel = document.querySelector('[data-qv-panel]');
-
-        function abrirQV(card: HTMLElement) {
-            const d = card.dataset;
-            const estados: Record<string, { label: string, color: string }> = {
-                instock: { label: 'En stock', color: 'var(--color-isotipo)' },
-                onbackorder: { label: 'Bajo pedido', color: 'var(--color-gold-700)' },
-                outofstock: { label: 'Sin stock', color: 'var(--color-muted)' },
-            };
-            // El precio y el estado se leen de lo que la tarjeta muestra AHORA
-            // (PreciosEnVivo ya pudo haberlos corregido), no del data- original.
-            const precioTexto = card.querySelector('[data-precio]')?.textContent?.trim() ?? '';
-            const stockActual = card.querySelector('[data-btn-agregar]')?.hasAttribute('hidden') ? 'outofstock' : 'instock';
-            const estado = estados[stockActual] ?? estados.outofstock;
-            const enStock = stockActual === 'instock';
-
-            const set = (sel: string, texto: string) => {
-                const el = document.querySelector(sel);
-                if (el) el.textContent = texto;
-            };
-
-            set('[data-qv-nombre]', d.name ?? '');
-            set('[data-qv-cat]', d.cat ?? '');
-            set('[data-qv-sku]', d.sku ? `· SKU ${d.sku}` : '');
-            set('[data-qv-precio]', precioTexto);
-            set('[data-qv-desc]', d.desc || 'Sin descripción disponible — pide más detalle por asesoría.');
-
-            const estadoEl = document.querySelector('[data-qv-estado]') as HTMLElement | null;
-            if (estadoEl) { estadoEl.textContent = `● ${estado.label}`; estadoEl.style.color = estado.color; }
-
-            const img = document.querySelector('[data-qv-img]') as HTMLImageElement | null;
-            if (img) { img.src = d.img ?? ''; img.alt = d.name ?? ''; }
-
-            const agregar = document.querySelector('[data-qv-agregar]') as HTMLElement | null;
-            const cotizar = document.querySelector('[data-qv-cotizar]') as HTMLElement | null;
-            if (agregar) {
-                agregar.toggleAttribute('hidden', !enStock);
-                if (d.id) agregar.setAttribute('data-add-to-cart', d.id); // reutiliza el handler global del carrito
-            }
-            cotizar?.toggleAttribute('hidden', enStock);
-
-            const ficha = document.querySelector('[data-qv-ficha]') as HTMLAnchorElement | null;
-            if (ficha && d.id) ficha.href = `/producto/${d.id}`;
-
-            qvOverlay?.removeAttribute('hidden');
-            document.body.classList.add('overflow-hidden');
-        }
-
-        function cerrarQV() {
-            qvOverlay?.setAttribute('hidden', '');
-            document.body.classList.remove('overflow-hidden');
-        }
-
-        document.querySelectorAll('[data-quickview]').forEach((btn) => {
-            btn.addEventListener('click', (e) => {
-                e.preventDefault();
-                const card = btn.closest('article');
-                if (card instanceof HTMLElement) abrirQV(card);
-            });
-        });
-
-        qvOverlay?.addEventListener('click', (e) => { if (e.target === qvOverlay) cerrarQV(); });
-        qvPanel?.addEventListener('click', (e) => e.stopPropagation());
-        document.querySelector('[data-qv-cerrar]')?.addEventListener('click', cerrarQV);
-        document.addEventListener('keydown', (e) => { if (e.key === 'Escape') cerrarQV(); });
 
         render();
     }

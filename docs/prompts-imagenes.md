@@ -155,3 +155,87 @@ Alternativas con catálogo cargado: `generadores-electricos` (7),
 
 Las categorías `Agricultura`, `Áreas Verdes`, `Repuestos` y `Sustrato y Suelos`
 existen en Woo pero **están vacías**, así que no sirven como vitrina todavía.
+
+---
+
+# Prompts de imagen — Heroes de Nosotros y Contacto
+
+Estas dos páginas abren hoy con una banda verde plana, sin imagen. La idea es
+romper la monotonía verde/crema sin salirse de la identidad.
+
+## Reglas comunes de HERO (distintas a las de las vitrinas)
+
+Ojo: las vitrinas son 4:3 con el **tercio inferior** despejado, porque su velo
+va de abajo hacia arriba. Estos heroes son **panorámicos** y su velo va de
+izquierda a derecha (igual que el de la home):
+
+    linear-gradient(90deg, rgba(10,30,16,.94) 0%, rgba(10,30,16,.6) 48%, rgba(10,30,16,.15) 100%)
+
+De ahí salen las condiciones, que son las que de verdad hacen que funcione:
+
+- **Formato 16:9 apaisado, mínimo 2400×1350 px.** Se recorta con `object-cover`,
+  así que lo importante va centrado en vertical.
+- **La mitad IZQUIERDA tiene que estar tranquila**: cielo, pasto, pared, niebla,
+  un fondo sin detalle. Ahí encima van el título y la bajada, y el velo la tapa
+  casi por completo. Si pones el sujeto a la izquierda, desaparece.
+- **El sujeto va en el TERCIO DERECHO**, que es donde el velo es casi
+  transparente y la imagen se ve de verdad.
+- Imagen **de luminosidad media-alta**: encima lleva una capa verde oscura al
+  60-94%. Una foto ya oscura de origen se convierte en un borrón sin lectura.
+- Fotografía documental realista, sin aspecto de render 3D ni de stock genérico.
+- Luz natural suave de día nublado del sur de Chile, sin sol duro.
+- Sin texto, sin logos, sin marcas legibles. Sin rostros reconocibles.
+
+---
+
+## 1. Nosotros → `src/assets/heroes/nosotros.webp`
+
+Lo que tiene que comunicar: arraigo y oficio. No "nuestro equipo" — ver la nota
+de abajo.
+
+> Fotografía documental realista de un campo trabajado en el sur de Chile a
+> primera hora de la mañana, en un día nublado. La mitad izquierda de la imagen
+> es un cielo gris suave y una franja de niebla baja sobre cerros boscosos
+> lejanos, sin detalle, muy despejada. En el tercio derecho, en primer plano,
+> el borde de un huerto con hileras de hortalizas verdes bien cuidadas, un
+> invernadero de plástico y el frente de un galpón de madera con herramientas
+> apoyadas contra el muro. La tierra está húmeda y recién removida. La escena
+> transmite trabajo real y continuidad, no una postal turística. Cámara a la
+> altura de una persona de pie, ligeramente en diagonal, profundidad de campo
+> amplia. Paleta de verdes profundos, tierra café y grises suaves de niebla.
+> Luminosidad media-alta, sin zonas negras. Sin personas, sin texto, sin logos,
+> sin marcas visibles. Formato 16:9 apaisado, fotografía documental, realista.
+
+## 2. Contacto → `src/assets/heroes/contacto.webp`
+
+Lo que tiene que comunicar: que hay alguien al otro lado que escucha y orienta.
+Es el cierre del funnel, y el diferencial declarado del negocio es la asesoría.
+
+> Fotografía documental realista dentro de un local de venta de insumos
+> agrícolas en el sur de Chile, con luz natural suave entrando por un ventanal
+> lateral en un día nublado. La mitad izquierda es una pared clara y el piso del
+> local, en desenfoque suave, sin objetos que llamen la atención. En el tercio
+> derecho, dos personas de pie junto a un mostrador de madera, vistas de perfil
+> y de tres cuartos, sin rostros reconocibles ni mirar a cámara: una atiende y
+> señala con la mano un catálogo abierto sobre el mostrador, la otra escucha con
+> los brazos apoyados. Sobre el mostrador hay un cuaderno, unas tijeras de podar
+> y un saco de sustrato. Al fondo, desenfocadas, estanterías con herramientas y
+> productos de jardinería. La escena transmite conversación y orientación, no
+> una venta apurada. Paleta de verdes, madera y crema, con luz cálida tenue.
+> Luminosidad media-alta, sin zonas negras. Sin texto, sin logos, sin marcas
+> visibles. Formato 16:9 apaisado, fotografía documental, realista.
+
+---
+
+## Nota sobre "Nosotros" — por qué el prompt evita el retrato de equipo
+
+Lo obvio para un "quiénes somos" sería una foto del equipo. No lo propongo a
+propósito: una imagen generada por IA de personas presentadas como el equipo de
+Ecollifén son personas que no existen puestas donde el lector espera a los
+dueños reales. Es el tipo de detalle que destruye la confianza justo en la
+página cuyo único trabajo es construirla.
+
+Para esa página, **una foto real del local, del galpón o de la gente de
+Ecollifén vale más que cualquier imagen generada**, aunque esté peor tomada.
+Vale la pena pedírsela al cliente. Mientras tanto, el prompt de arriba resuelve
+el vacío con lugar y oficio, que sí son verdad.
