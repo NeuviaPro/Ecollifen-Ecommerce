@@ -40,18 +40,23 @@ const columns: FooterColumn[] = [
 ---
 
 <footer class="bg-primary text-primary-contrast">
-    <div class="mx-auto max-w-6xl px-6 py-14">
-        <div class="grid grid-cols-1 gap-10 sm:grid-cols-3">
+    <div class="mx-auto max-w-6xl px-6 py-10 sm:py-14">
+        {/* En móvil las tres listas van una debajo de otra y centradas, así que
+            necesitan una línea que las separe: sin ella se leen como un solo
+            bloque largo de enlaces. Desde sm son columnas y la separación la da
+            la propia grilla, por eso el borde se apaga. */}
+        <div class="grid grid-cols-1 gap-7 sm:grid-cols-3 sm:gap-10 [&>*+*]:border-t [&>*+*]:border-cream-50/10 [&>*+*]:pt-7 sm:[&>*+*]:border-0 sm:[&>*+*]:pt-0">
             {columns.map( (column) =>
                 <FooterBox title={column.title} items={column.items} />
             )}
         </div>
 
-        <div class="mt-12 flex flex-col gap-3 border-t border-cream-50/10 pt-6 sm:flex-row sm:items-center sm:justify-center">
+        <div class="mt-9 flex flex-col items-center gap-2 border-t border-cream-50/10 pt-6 text-center sm:mt-12 sm:flex-row sm:justify-center sm:gap-2.5">
             <p class="text-xs text-cream-200/60">
                 &copy; { new Date().getFullYear() } Ecollifén SpA · Todos los derechos reservados.
             </p>
-            <p class="font-display text-sm italic text-green-300">
+            <span class="hidden text-cream-200/30 sm:inline" aria-hidden="true">·</span>
+            <p class="font-display text-sm text-green-300 italic">
                 Soluciones que echan raíces.
             </p>
         </div>

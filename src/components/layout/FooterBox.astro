@@ -12,17 +12,20 @@ interface Props {
 const { title, items } = Astro.props;
 ---
 
-<div class="flex flex-col gap-4">
-    <h3 class="font-mono text-xs uppercase tracking-[0.16em] text-green-300">
+<div class="flex flex-col items-center gap-3.5 text-center sm:items-start sm:gap-4 sm:text-left">
+    <h3 class="font-mono text-xs tracking-[0.16em] text-green-300 uppercase">
         { title }
     </h3>
 
-    <ul class="flex flex-col gap-2.5">
+    {/* gap chico + padding en el enlace: la separación visual se mantiene, pero
+        el área que se puede tocar con el dedo crece. En móvil un enlace de 14px
+        sin padding es un blanco difícil de acertar. */}
+    <ul class="flex flex-col gap-0.5 sm:gap-1">
         {items.map( (item) =>
             <li>
                 <a
                     href={item.href}
-                    class="text-sm text-cream-200/75 transition-colors hover:text-cream-50"
+                    class="inline-block py-1 text-[15px] text-cream-200/75 transition-colors hover:text-cream-50 sm:text-sm"
                 >{item.name}</a>
             </li>
         )}

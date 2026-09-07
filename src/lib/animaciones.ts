@@ -57,6 +57,17 @@ function preset(nombre: string | null | undefined): Record<string, number> {
 /** Estado final: deshace cualquier preset, sea cual sea. */
 const FINAL = { opacity: 1, x: 0, y: 0, scale: 1 };
 
+/**
+ * Para coreografías a medida de una sección concreta (por ejemplo el nav de
+ * raíces de Raíz Viva), que no encajan en ningún preset.
+ *
+ * Se re-exportan desde aquí a propósito: ningún archivo del proyecto debe
+ * importar 'gsap' directamente. Así el registro de plugins y la configuración
+ * siguen viviendo en un solo sitio, y una búsqueda de "from '@/lib/animaciones'"
+ * sigue mostrando todo lo que anima en el sitio.
+ */
+export { gsap, ScrollTrigger };
+
 export function menosMovimiento(): boolean {
     return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 }

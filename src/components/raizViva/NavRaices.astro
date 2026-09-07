@@ -1,0 +1,184 @@
+---
+// Navegación de secciones de Raíz Viva, dibujada como una raíz que crece.
+//
+// No es un adorno suelto: es la metáfora de la marca hecha interfaz. El tallo
+// se dibuja a medida que bajas (la raíz "crece" con la lectura) y cada nodo se
+// enciende cuando entras en su sección, así que sirve de índice y de indicador
+// de posición al mismo tiempo.
+//
+// Solo aparece desde 1280 px: por debajo no hay margen lateral libre y se
+// montaría encima del contenido. En móvil no se pierde nada — es navegación
+// secundaria, todas las secciones siguen alcanzables haciendo scroll.
+
+interface Nodo {
+    id: string;      // id de la sección a la que salta
+    label: string;
+    y: number;       // posición sobre el tallo, en coordenadas del viewBox
+}
+
+// Las Y coinciden con los puntos donde el tallo pasa por x=22, para que los
+// nodos queden exactamente encima de la curva y no flotando al lado.
+const nodos: Nodo[] = [
+    { id: 'origen',   label: 'El origen',   y: 20 },
+    { id: 'linea',    label: 'La línea',    y: 150 },
+    { id: 'estrella', label: 'El sustrato', y: 280 },
+    { id: 'uso',      label: 'Cómo usarlo', y: 410 },
+    { id: 'asesoria-rv', label: 'Asesoría', y: 540 },
+];
+
+// Tallo principal: una vertical que serpentea suave, pasando por x=22 justo en
+// cada nodo. Las raicillas laterales salen entre nodo y nodo.
+const TALLO = 'M22 20 C 30 70, 14 100, 22 150 C 30 200, 14 230, 22 280 C 30 330, 14 360, 22 410 C 30 460, 14 490, 22 540';
+
+const RAICILLAS = [
+    'M22 78 C 15 84, 11 92, 8 103',
+    'M22 112 C 29 118, 33 126, 36 136',
+    'M22 208 C 15 214, 11 222, 8 233',
+    'M22 340 C 29 346, 33 354, 36 364',
+    'M22 468 C 15 474, 11 482, 8 493',
+];
+---
+
+<nav
+    data-raices
+    aria-label="Secciones de Raíz Viva"
+    class="pointer-events-none fixed top-1/2 left-5 z-30 hidden -translate-y-1/2 xl:block"
+>
+    <div class="relative">
+        <svg
+            width="44"
+            height="430"
+            viewBox="0 0 44 560"
+            fill="none"
+            aria-hidden="true"
+            class="overflow-visible"
+        >
+            {/* Capa 1: el tallo completo, muy tenue. Es la guía de por dónde
+                va a crecer la raíz — sin ella, el trazo animado parece flotar. */}
+            <path d={TALLO} stroke="var(--color-earth-500)" stroke-opacity="0.28" stroke-width="2" stroke-linecap="round" />
+            {RAICILLAS.map((d) => (
+                <path d={d} stroke="var(--color-earth-500)" stroke-opacity="0.2" stroke-width="1.5" stroke-linecap="round" />
+            ))}
+
+            {/* Capa 2: la raíz viva, en verde. Se dibuja con el scroll. */}
+            <path data-tallo d={TALLO} stroke="var(--color-green-600)" stroke-width="2.5" stroke-linecap="round" />
+            {RAICILLAS.map((d) => (
+                <path data-raicilla d={d} stroke="var(--color-green-500)" stroke-width="1.75" stroke-linecap="round" />
+            ))}
+        </svg>
+
+        {/* Los nodos van en HTML y no en el SVG: así son botones de verdad,
+            con foco de teclado y área de clic decente, en vez de círculos. */}
+        <ul class="pointer-events-auto absolute inset-0">
+            {nodos.map((nodo) => (
+                <li class="absolute -translate-x-1/2 -translate-y-1/2" style={`left:${(22 / 44) * 100}%; top:${(nodo.y / 560) * 100}%`}>
+                    <a
+                        href={`#${nodo.id}`}
+                        data-nodo={nodo.id}
+                        class="group/nodo relative flex size-4 items-center justify-center"
+                    >
+                        <span class="sr-only">{nodo.label}</span>
+
+                        {/* Punto */}
+                        <span
+                            data-punto
+                            class="size-2.5 rounded-full border-2 border-earth-500/40 bg-background transition-all duration-300 group-hover/nodo:border-substrate"
+                        ></span>
+
+                        {/* Etiqueta: aparece al pasar el mouse o al enfocar con
+                            el teclado, para no ocupar espacio permanente. */}
+                        <span
+                            class="pointer-events-none absolute left-6 rounded-lg border border-earth-500/20 bg-surface px-2.5 py-1 font-mono text-[10px] whitespace-nowrap text-substrate opacity-0 shadow-sm transition-all duration-200 group-hover/nodo:translate-x-0 group-hover/nodo:opacity-100 group-focus-visible/nodo:translate-x-0 group-focus-visible/nodo:opacity-100 -translate-x-1"
+                        >{nodo.label}</span>
+                    </a>
+                </li>
+            ))}
+        </ul>
+    </div>
+</nav>
+
+<script>
+    // GSAP se importa del estándar del sitio, nunca de 'gsap' directamente.
+    import { gsap, ScrollTrigger, menosMovimiento } from '@/lib/animaciones';
+
+    // Se toca solo la clase del punto: el enlace mantiene su propio hover y
+    // foco sin pelear con el estado activo.
+    let triggers: ScrollTrigger[] = [];
+
+    function initRaices() {
+        // Se limpian los de la visita anterior: si no, al volver a la página
+        // quedarían dos juegos midiendo el mismo scroll.
+        triggers.forEach((t) => t.kill());
+        triggers = [];
+
+        const nav = document.querySelector<HTMLElement>('[data-raices]');
+        if (!nav) return;
+
+        const tallo = nav.querySelector<SVGPathElement>('[data-tallo]');
+        const raicillas = Array.from(nav.querySelectorAll<SVGPathElement>('[data-raicilla]'));
+        const trazos = [tallo, ...raicillas].filter((p): p is SVGPathElement => p !== null);
+
+        // Cada trazo se "recorta" con su propio largo, medido del path real:
+        // así no hay números mágicos que se rompan si alguien edita la curva.
+        trazos.forEach((p) => {
+            const largo = p.getTotalLength();
+            p.style.strokeDasharray = String(largo);
+            p.style.strokeDashoffset = menosMovimiento() ? '0' : String(largo);
+        });
+
+        // 1. La raíz crece con el avance del scroll de la página.
+        if (!menosMovimiento()) {
+            triggers.push(ScrollTrigger.create({
+                trigger: document.body,
+                start: 'top top',
+                end: 'bottom bottom',
+                // scrub: la raíz sigue al scroll en los dos sentidos, en vez de
+                // dispararse una vez. Es lo que la hace sentir viva.
+                scrub: 0.4,
+                onUpdate: (self) => {
+                    trazos.forEach((p) => {
+                        const largo = p.getTotalLength();
+                        gsap.set(p, { strokeDashoffset: largo * (1 - self.progress) });
+                    });
+                },
+            }));
+        }
+
+        // 2. Scroll spy: se enciende el nodo de la sección que estás mirando.
+        const nodos = Array.from(nav.querySelectorAll<HTMLElement>('[data-nodo]'));
+
+        const marcar = (id: string) => {
+            nodos.forEach((a) => {
+                const punto = a.querySelector('[data-punto]');
+                if (!punto) return;
+                const esActivo = a.dataset.nodo === id;
+                punto.classList.toggle('border-isotipo', esActivo);
+                punto.classList.toggle('bg-isotipo', esActivo);
+                punto.classList.toggle('scale-150', esActivo);
+                punto.classList.toggle('border-earth-500/40', !esActivo);
+                punto.classList.toggle('bg-background', !esActivo);
+            });
+        };
+
+        nodos.forEach((a) => {
+            const id = a.dataset.nodo;
+            const seccion = id ? document.getElementById(id) : null;
+            if (!seccion || !id) return;
+
+            triggers.push(ScrollTrigger.create({
+                trigger: seccion,
+                start: 'top center',
+                end: 'bottom center',
+                onToggle: (self) => { if (self.isActive) marcar(id); },
+            }));
+        });
+
+        marcar(nodos[0]?.dataset.nodo ?? '');
+    }
+
+    document.addEventListener('astro:page-load', initRaices);
+    document.addEventListener('astro:before-swap', () => {
+        triggers.forEach((t) => t.kill());
+        triggers = [];
+    });
+</script>

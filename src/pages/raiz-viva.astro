@@ -18,6 +18,7 @@ import logoRaizViva from '@/assets/raizViva/raiz-viva.webp';
 import productoAmbiente from '@/assets/raizViva/raiz-viva-producto.webp';
 import productoFrente from '@/assets/raizViva/raiz-viva-producto-frente.webp';
 import { asesoriaHref } from '@/lib/contacto';
+import NavRaices from '@/components/raizViva/NavRaices.astro';
 
 const CATEGORIA_HREF = '/tienda/raiz-viva';
 
@@ -56,9 +57,33 @@ const pasos = [
 ---
 
 <Layout title="Raíz Viva">
+    <NavRaices />
     {/* Hero — fondo Tierra oscuro (earth-700), CTA en Dorado por contraste:
         un botón Tierra sobre fondo Tierra casi no se distinguiría. */}
-    <section class="overflow-hidden bg-earth-700 text-earth-50">
+    <section id="origen" class="hero-raiz relative isolate scroll-mt-24 overflow-hidden bg-earth-700 text-earth-50">
+        {/* Capas de vida sobre la tierra. La página entera era Tierra sobre
+            Tierra: el verde es el color dominante de la marca y aquí no
+            aparecía por ningún lado, justo en la línea que se llama "Raíz
+            VIVA". Estas capas lo devuelven sin robarle el rol a la Tierra. */}
+        <div class="pointer-events-none absolute inset-0 -z-10 opacity-70 mezcla-vida"></div>
+
+        {/* Raíz de fondo: la misma forma del nav, en grande y casi invisible.
+            Ata visualmente la marca con su propia metáfora. */}
+        <svg
+            class="pointer-events-none absolute -top-10 -right-6 -z-10 h-[130%] w-auto text-green-500/10 md:right-1/3"
+            viewBox="0 0 200 600" fill="none" aria-hidden="true"
+        >
+            <g stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+                <path d="M100 0 C 118 90, 74 150, 100 250 C 126 350, 78 420, 100 600" />
+                <path d="M100 120 C 60 140, 36 178, 22 232" />
+                <path d="M100 190 C 142 212, 166 250, 178 302" />
+                <path d="M100 300 C 58 326, 34 366, 24 424" />
+                <path d="M100 400 C 140 424, 160 462, 168 512" />
+                <path d="M22 232 C 8 254, 4 286, 10 318" stroke-width="1.5" />
+                <path d="M178 302 C 192 326, 194 356, 186 386" stroke-width="1.5" />
+            </g>
+        </svg>
+
         <div class="mx-auto max-w-6xl px-6">
             <div class="grid items-center gap-14 lg:grid-cols-[1.02fr_0.98fr]">
                 <div class="py-16 md:py-20">
@@ -70,8 +95,8 @@ const pasos = [
                         <Image src={logoRaizViva} alt="Raíz Viva" class="h-full w-full object-contain" />
                     </div>
 
-                    <p class="mt-6 max-w-[30ch] font-display text-2xl leading-tight text-earth-100 italic">
-                        Volver al origen, cuidar la raíz.
+                    <p class="mt-6 max-w-[30ch] border-l-2 border-green-500 pl-4 font-display text-2xl leading-tight text-earth-100 italic">
+                        Volver al origen, cuidar la <span class="text-green-300 not-italic">raíz</span>.
                     </p>
 
                     <p class="mt-6 max-w-lg text-lg leading-relaxed text-earth-50/85">
@@ -112,10 +137,10 @@ const pasos = [
 
     {/* Banda de cifras — Tierra (rol oficial: Sustrato/Compost) */}
     <section class="bg-substrate text-earth-50">
-        <div class="mx-auto grid max-w-6xl grid-cols-2 gap-8 px-6 py-7 md:grid-cols-4">
+        <div class="mx-auto grid max-w-6xl grid-cols-2 gap-8 px-6 py-7 md:grid-cols-4" data-anim-stagger="0.07">
             {stats.map((stat) => (
                 <div>
-                    <p class="font-display text-2xl font-semibold text-white">{stat.valor}</p>
+                    <p class="font-display text-2xl font-semibold text-gold-200">{stat.valor}</p>
                     <p class="mt-1 font-mono text-[11px] tracking-[0.09em] text-earth-100/90">{stat.label}</p>
                 </div>
             ))}
@@ -123,7 +148,7 @@ const pasos = [
     </section>
 
     {/* La línea */}
-    <section id="linea" class="mx-auto max-w-6xl px-6 pt-16 md:pt-20">
+    <section id="linea" class="mx-auto max-w-6xl scroll-mt-24 px-6 pt-16 md:pt-20">
         <div class="flex flex-col gap-6 border-b border-earth-500/20 pb-5 sm:flex-row sm:items-end sm:justify-between">
             <div>
                 <p class="font-mono text-[11px] tracking-[0.14em] text-substrate">LA LÍNEA</p>
@@ -137,7 +162,7 @@ const pasos = [
             </p>
         </div>
 
-        <div class="mt-9 grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3">
+        <div class="mt-9 grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3" data-anim-stagger>
             {/* Sustrato — el único con imagen y copy ya aprobados */}
             <article class="flex flex-col overflow-hidden rounded-2xl border border-earth-500/20 bg-surface transition-all duration-300 hover:-translate-y-1.5 hover:border-substrate hover:shadow-[0_20px_44px_-24px_rgba(122,59,30,.45)]">
                 <div class="relative aspect-4/3 overflow-hidden border-b border-earth-500/15 bg-white">
@@ -206,8 +231,8 @@ const pasos = [
 
     {/* Producto estrella — mismo copy aprobado que ProductoEstrella.astro,
         con imagen a la izquierda (así lo pide el diseño para esta página). */}
-    <section class="mx-auto max-w-6xl px-6 pt-16 md:pt-20">
-        <div class="grid items-center gap-12 overflow-hidden rounded-3xl border border-earth-500/20 bg-surface lg:grid-cols-[1fr_1.1fr]">
+    <section id="estrella" class="mx-auto max-w-6xl scroll-mt-24 px-6 pt-16 md:pt-20">
+        <div class="grid items-center gap-12 overflow-hidden rounded-3xl border border-earth-500/20 bg-surface lg:grid-cols-[1fr_1.1fr]" data-anim>
             <div class="relative min-h-105 self-stretch bg-earth-100">
                 <Image
                     src={productoFrente}
@@ -266,13 +291,13 @@ const pasos = [
 
     {/* Cómo usarlo — guía general de siembra, no una promesa sobre un producto
         específico: bajo riesgo aunque el catálogo aún no tenga stock. */}
-    <section class="mx-auto max-w-6xl px-6 pt-16 md:pt-20">
+    <section id="uso" class="mx-auto max-w-6xl scroll-mt-24 px-6 pt-16 md:pt-20">
         <p class="font-mono text-[11px] tracking-[0.14em] text-substrate">CÓMO USARLO</p>
         <h2 class="mt-3 font-display text-4xl leading-tight font-semibold text-earth-700">
             Tres pasos, cualquier cultivo
         </h2>
 
-        <div class="mt-9 grid grid-cols-1 gap-6 sm:grid-cols-3">
+        <div class="mt-9 grid grid-cols-1 gap-6 sm:grid-cols-3" data-anim-stagger>
             {pasos.map((paso) => (
                 <div class="border-t-2 border-substrate pt-5">
                     <span class="font-display text-4xl leading-none font-semibold text-earth-500/30">{paso.n}</span>
@@ -284,8 +309,8 @@ const pasos = [
     </section>
 
     {/* Cierre */}
-    <section class="mx-auto max-w-6xl px-6 pt-16 pb-20 md:pt-20">
-        <div class="grid items-center gap-10 rounded-3xl bg-earth-700 p-10 text-earth-50 md:grid-cols-2 md:p-13">
+    <section id="asesoria-rv" class="mx-auto max-w-6xl scroll-mt-24 px-6 pt-16 pb-20 md:pt-20">
+        <div class="grid items-center gap-10 rounded-3xl bg-earth-700 p-10 text-earth-50 md:grid-cols-2 md:p-13" data-anim>
             <div>
                 <h2 class="max-w-[20ch] font-display text-3xl leading-tight font-semibold text-balance text-white">
                     ¿No sabes qué sustrato necesita tu cultivo?
@@ -312,3 +337,28 @@ const pasos = [
         </div>
     </section>
 </Layout>
+
+<style>
+    /* La "vida" del hero: dos focos verdes y uno dorado muy tenues sobre la
+       tierra. Van en CSS y no en Tailwind porque son tres degradados radiales
+       superpuestos — como utilidades sueltas serían ilegibles. */
+    .mezcla-vida {
+        background-image:
+            radial-gradient(38rem 26rem at 12% 8%, color-mix(in srgb, var(--color-green-500) 26%, transparent), transparent 62%),
+            radial-gradient(30rem 24rem at 78% 92%, color-mix(in srgb, var(--color-green-600) 20%, transparent), transparent 58%),
+            radial-gradient(26rem 18rem at 60% 0%, color-mix(in srgb, var(--color-gold-500) 14%, transparent), transparent 60%);
+    }
+
+    /* Suelo: la sección se oscurece hacia abajo, como tierra en profundidad.
+       Da volumen sin agregar ni un elemento más al DOM. */
+    .hero-raiz::after {
+        content: "";
+        position: absolute;
+        inset-inline: 0;
+        bottom: 0;
+        height: 45%;
+        z-index: -10;
+        pointer-events: none;
+        background: linear-gradient(to top, color-mix(in srgb, var(--color-earth-700) 92%, black), transparent);
+    }
+</style>
