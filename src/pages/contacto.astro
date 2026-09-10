@@ -3,18 +3,16 @@
 // dos motivos reales del negocio (asesoría/cotización y servicio técnico), con
 // los campos que cambian según lo que el visitante elija.
 //
-// IMPORTANTE: el sitio es estático, no hay backend que reciba el POST. Al
-// enviar, el formulario ARMA el mensaje y lo abre en WhatsApp (si hay número
-// configurado) o en el cliente de correo. Es deliberado: preferimos que el
-// mensaje llegue de verdad antes que simular un envío que nadie recibe.
-// Cuando exista un endpoint (WordPress, CRM o servicio de formularios), se
-// cambia el <script> del final y el resto queda igual.
+// IMPORTANTE: el sitio Astro se genera estático (output: "static"), pero el
+// envío SÍ llega a destino: si hay WhatsApp configurado (PUBLIC_WHATSAPP), el
+// botón abre la app/web de WhatsApp con el mensaje ya escrito; si no, el envío
+// se hace por correo real vía POST a /forms.php (PHP suelto en public/, que
+// viaja a dist/ junto con el resto del sitio estático y corre en el mismo
+// hosting de cPanel). Ver public/forms.php para el detalle del backend.
 import Layout from '@/layouts/Layout.astro';
-import { Image } from 'astro:assets';
-import heroImg from '@/assets/heroes/contacto.webp';
 import { hayWhatsApp } from '@/lib/contacto';
 
-const CORREO = import.meta.env.PUBLIC_CONTACTO_EMAIL ?? 'marca@ecollifen.cl';
+const CORREO = import.meta.env.PUBLIC_CONTACTO_EMAIL ?? 'ventasecollifen@gmail.com';
 
 const segmentos = [
     'Particular / parcelero',
@@ -47,20 +45,7 @@ const metricas = [
 
 <Layout title="Contacto">
     {/* Encabezado */}
-    <section class="relative isolate overflow-hidden bg-primary text-primary-contrast">
-        {/* Foto de fondo + velo horizontal, igual que el hero de la home:
-            oscuro a la izquierda para que el texto se lea, casi limpio a la
-            derecha para que la imagen se vea. Por eso la foto tiene el
-            sujeto en el tercio derecho. */}
-        <Image
-            src={heroImg}
-            alt=""
-            widths={[768, 1280, 1920]}
-            sizes="100vw"
-            loading="eager"
-            class="absolute inset-0 -z-10 h-full w-full object-cover"
-        />
-        <div class="absolute inset-0 -z-10 bg-[linear-gradient(90deg,rgba(10,30,16,.94)_0%,rgba(10,30,16,.72)_45%,rgba(10,30,16,.34)_100%)]"></div>
+    <section class="bg-primary text-primary-contrast">
         <div class="mx-auto max-w-6xl px-6 py-14 md:py-16">
             <p class="font-mono text-xs tracking-[0.16em] text-green-300">
                 CONTACTO · ASESORÍA SIN COSTO
@@ -89,7 +74,7 @@ const metricas = [
             {/* ===== Formulario ===== */}
             <form
                 data-form-contacto
-                class="rounded-2xl border border-border bg-surface p-6 md:p-9"
+                class="relative rounded-2xl border border-border bg-surface p-6 md:p-9"
                 novalidate
             >
                 {/* Motivo: decide qué campos se muestran más abajo */}
@@ -186,22 +171,51 @@ const metricas = [
                     </p>
                 </div>
 
-                {/* Envío */}
-                <button
-                    type="submit"
-                    class="mt-7 w-full rounded-lg bg-cta py-3.5 font-semibold text-cta-contrast transition-colors hover:bg-green-600 hover:text-primary-contrast"
-                >
-                    {hayWhatsApp ? 'Enviar por WhatsApp' : 'Enviar por correo'}
-                </button>
+                {/* Envío: se elige el canal al enviar, no queda fijo por configuración.
+                    Si no hay WhatsApp configurado (PUBLIC_WHATSAPP vacío), solo se
+                    muestra la opción de correo. */}
+                <div class:list={["mt-7 grid gap-3", hayWhatsApp && "sm:grid-cols-2"]}>
+                    {hayWhatsApp && (
+                        <button
+                            type="submit"
+                            data-boton-enviar="whatsapp"
+                            class="w-full rounded-lg bg-cta py-3.5 font-semibold text-cta-contrast transition-colors hover:bg-green-600 hover:text-primary-contrast disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                            Enviar por WhatsApp
+                        </button>
+                    )}
+                    <button
+                        type="submit"
+                        data-boton-enviar="correo"
+                        class:list={[
+                            "w-full rounded-lg py-3.5 font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-60",
+                            hayWhatsApp
+                                ? "border border-cta text-primary hover:bg-green-50"
+                                : "bg-cta text-cta-contrast hover:bg-green-600 hover:text-primary-contrast",
+                        ]}
+                    >
+                        Enviar por correo
+                    </button>
+                </div>
 
                 <p class="mt-3 text-center text-xs text-muted">
                     {hayWhatsApp
-                        ? 'Se abrirá WhatsApp con tu mensaje ya escrito para que lo envíes.'
-                        : 'Se abrirá tu programa de correo con el mensaje ya escrito para que lo envíes.'}
+                        ? 'Por WhatsApp se abre el chat con tu mensaje ya escrito; por correo, lo enviamos directo nosotros, sin abrir tu cliente de correo.'
+                        : 'Enviamos tu solicitud directo a nuestro correo; no necesitas tener un cliente de correo instalado.'}
                 </p>
 
-                {/* Aviso de validación (lo muestra el script) */}
+                {/* Honeypot anti-spam: invisible para personas, los bots suelen
+                    completar todos los inputs igual. No usar "hidden" ni
+                    display:none puro (algunos bots los detectan); se saca de
+                    pantalla con posicionamiento. */}
+                <label class="absolute -left-[9999px] top-auto" aria-hidden="true">
+                    Sitio web
+                    <input type="text" name="sitio_web" tabindex="-1" autocomplete="off" />
+                </label>
+
+                {/* Aviso de validación / estado de envío (lo muestra el script) */}
                 <p data-error hidden class="mt-3 rounded-lg border border-earth-500/30 bg-earth-50 p-3 text-sm text-substrate"></p>
+                <p data-exito hidden class="mt-3 rounded-lg border border-cta/30 bg-green-50 p-3 text-sm text-primary"></p>
             </form>
 
             {/* ===== Canales directos ===== */}
@@ -261,10 +275,16 @@ const metricas = [
 
 <script>
     // Formulario de contacto: alterna los campos según el motivo y, al enviar,
-    // arma el mensaje y lo abre en WhatsApp o en el correo. No hay POST porque
-    // el sitio es estático (ver comentario del frontmatter).
-    const WHATSAPP = import.meta.env.PUBLIC_WHATSAPP;
-    const CORREO = import.meta.env.PUBLIC_CONTACTO_EMAIL ?? 'marca@ecollifen.cl';
+    // decide el canal según la situación:
+    //   - Si hay WhatsApp configurado (PUBLIC_WHATSAPP), abre la app/web de
+    //     WhatsApp con el mensaje ya escrito. Esto sigue siendo 100% del lado
+    //     del navegador: un link https://wa.me/... no necesita backend.
+    //   - Si no hay WhatsApp configurado, la solicitud se envía de verdad por
+    //     correo a través de /forms.php (ver ese archivo), en vez de abrir un
+    //     mailto: que dependía de que la persona tuviera un cliente de correo
+    //     configurado en su equipo.
+    const whatsappCrudo = import.meta.env.PUBLIC_WHATSAPP;
+    const WHATSAPP = whatsappCrudo ? whatsappCrudo.replace(/\D/g, '') : '';
 
     function initContacto() {
         const encontrado = document.querySelector('[data-form-contacto]');
@@ -277,6 +297,8 @@ const metricas = [
             servicio: form.querySelector('[data-campos="servicio"]'),
         };
         const error = form.querySelector('[data-error]');
+        const exito = form.querySelector('[data-exito]');
+        const botones = form.querySelectorAll('[data-boton-enviar]');
 
         function motivoActual(): 'asesoria' | 'servicio' {
             const marcado = form.querySelector('input[name="motivo"]:checked');
@@ -296,13 +318,29 @@ const metricas = [
         );
 
         function mostrarError(mensaje: string) {
+            if (exito instanceof HTMLElement) exito.toggleAttribute('hidden', true);
             if (!(error instanceof HTMLElement)) return;
             error.textContent = mensaje;
             error.toggleAttribute('hidden', !mensaje);
         }
 
-        form.addEventListener('submit', (e) => {
+        function mostrarExito(mensaje: string) {
+            if (error instanceof HTMLElement) error.toggleAttribute('hidden', true);
+            if (!(exito instanceof HTMLElement)) return;
+            exito.textContent = mensaje;
+            exito.toggleAttribute('hidden', !mensaje);
+        }
+
+        form.addEventListener('submit', async (e) => {
             e.preventDefault();
+
+            // e.submitter es el <button type="submit"> que efectivamente se
+            // presionó (soportado por todos los navegadores modernos), así
+            // que el canal se decide por el botón elegido, no por si hay
+            // WhatsApp configurado.
+            const canal = e.submitter instanceof HTMLElement
+                ? e.submitter.getAttribute('data-boton-enviar')
+                : null;
 
             const datos = new FormData(form);
             const valor = (campo: string) => String(datos.get(campo) ?? '').trim();
@@ -316,37 +354,56 @@ const metricas = [
             mostrarError('');
 
             const motivo = motivoActual();
-            const lineas = [
-                motivo === 'servicio'
-                    ? 'Hola, necesito servicio técnico.'
-                    : 'Hola, quiero asesoría para elegir mis productos.',
-                '',
-                `Nombre: ${nombre}`,
-                `Teléfono: ${telefono}`,
-            ];
 
-            if (valor('email')) lineas.push(`Email: ${valor('email')}`);
-            if (valor('comuna')) lineas.push(`Comuna: ${valor('comuna')}`);
-
-            if (motivo === 'servicio') {
-                if (valor('equipo')) lineas.push(`Equipo: ${valor('equipo')}`);
-                if (valor('modelo')) lineas.push(`Marca y modelo: ${valor('modelo')}`);
-                if (valor('detalle_servicio')) lineas.push('', `Falla: ${valor('detalle_servicio')}`);
-            } else {
-                if (valor('segmento')) lineas.push(`Segmento: ${valor('segmento')}`);
-                if (valor('detalle_asesoria')) lineas.push('', `Necesito: ${valor('detalle_asesoria')}`);
+            // --- Camino WhatsApp: se arma el mensaje y se abre la app/web ---
+            if (canal === 'whatsapp' && WHATSAPP) {
+                const lineas = [
+                    motivo === 'servicio'
+                        ? 'Hola, necesito servicio técnico.'
+                        : 'Hola, quiero asesoría para elegir mis productos.',
+                    '',
+                    `Nombre: ${nombre}`,
+                    `Teléfono: ${telefono}`,
+                ];
+                if (valor('email')) lineas.push(`Email: ${valor('email')}`);
+                if (valor('comuna')) lineas.push(`Comuna: ${valor('comuna')}`);
+                if (motivo === 'servicio') {
+                    if (valor('equipo')) lineas.push(`Equipo: ${valor('equipo')}`);
+                    if (valor('modelo')) lineas.push(`Marca y modelo: ${valor('modelo')}`);
+                    if (valor('detalle_servicio')) lineas.push('', `Falla: ${valor('detalle_servicio')}`);
+                } else {
+                    if (valor('segmento')) lineas.push(`Segmento: ${valor('segmento')}`);
+                    if (valor('detalle_asesoria')) lineas.push('', `Necesito: ${valor('detalle_asesoria')}`);
+                }
+                const mensaje = lineas.join('\n');
+                window.open(`https://wa.me/${WHATSAPP}?text=${encodeURIComponent(mensaje)}`, '_blank');
+                return;
             }
 
-            const mensaje = lineas.join('\n');
+            // --- Camino correo: POST real a forms.php, sin abrir nada ---
+            botones.forEach((b) => { if (b instanceof HTMLButtonElement) b.disabled = true; });
+            try {
+                const respuesta = await fetch('/forms.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(Object.fromEntries(datos.entries())),
+                });
+                const resultado = await respuesta.json().catch(() => ({}));
 
-            if (WHATSAPP) {
-                window.open(`https://wa.me/${WHATSAPP}?text=${encodeURIComponent(mensaje)}`, '_blank');
-            } else {
-                const asunto = motivo === 'servicio'
-                    ? 'Solicitud de servicio técnico'
-                    : 'Solicitud de asesoría';
-                window.location.href =
-                    `mailto:${CORREO}?subject=${encodeURIComponent(asunto)}&body=${encodeURIComponent(mensaje)}`;
+                if (!respuesta.ok || !resultado.ok) {
+                    mostrarError(
+                        resultado.error ?? 'No pudimos enviar tu solicitud. Intenta de nuevo en unos minutos.'
+                    );
+                    return;
+                }
+
+                mostrarExito('¡Listo! Recibimos tu solicitud y te contactaremos a la brevedad.');
+                form.reset();
+                alternarCampos();
+            } catch {
+                mostrarError('No pudimos conectar con el servidor. Revisa tu conexión e intenta de nuevo.');
+            } finally {
+                botones.forEach((b) => { if (b instanceof HTMLButtonElement) b.disabled = false; });
             }
         });
 
