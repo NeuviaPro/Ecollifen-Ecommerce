@@ -2,23 +2,32 @@
 import { Picture } from "astro:assets";
 import MainNav from "./MainNav.astro";
 import Logo from '@/assets/ecollifenLogo.png';
-import { navigation, tiendaAreas } from '@/lib/navigation';
+import { navigation } from '@/lib/navigation';
 import CartBadge from '@/components/cart/CartBadge';
 import Buscador from '@/components/search/Buscador.astro';
 import { asesoriaHref } from '@/lib/contacto';
-import { getAllWooCategories } from '@/lib/api';
+import { getAllWooCategories, getCatalogoCompleto } from '@/lib/api';
+import { areasDeTienda, conteosDeRama } from '@/lib/categorias';
+import type { Area } from '@/lib/categorias';
 
 // Nota: el inicio de sesión de clientes queda FUERA de este primer alcance,
 // por eso el header no lo enlaza. La cuenta nativa de WooCommerce existe en
 // /wp/mi-cuenta si más adelante se decide exponerla.
 
-// El Header se renderiza en TODAS las páginas (~120 en el build). Sin
-// memoizar, esto sería una llamada a WordPress por página; getAllWooCategories
-// cachea, así que en la práctica es una sola petición real por build.
-let categoriasExistentes = new Set<string>();
+// Las áreas del dropdown de Tienda son las categorías RAÍZ de WooCommerce: el
+// nombre y el slug salen de ahí, así que renombrar o crear un área en WP se
+// refleja solo en el próximo build (antes eran una lista escrita a mano y se
+// desincronizaron: "agricola" pasó a ser "huertos-y-agricolas" y el enlace
+// quedó apuntando a una página inexistente).
+// El Header se renderiza en TODAS las páginas (~120 en el build); las dos
+// llamadas están memoizadas, así que en la práctica son una sola petición real.
+let areas: Area[] = [];
 try {
-    const categorias = await getAllWooCategories();
-    categoriasExistentes = new Set(categorias.map((c) => c.slug));
+    const [categorias, productos] = await Promise.all([
+        getAllWooCategories(),
+        getCatalogoCompleto(),
+    ]);
+    areas = areasDeTienda(categorias, conteosDeRama(categorias, productos));
 } catch (error) {
     console.error('[header] No se pudieron cargar las categorías:', error);
 }
@@ -53,7 +62,7 @@ try {
                 />
             </a>
 
-            <MainNav class="hidden lg:flex justify-around" categoriasExistentes={categoriasExistentes} />
+            <MainNav class="hidden lg:flex justify-around" areas={areas} />
 
             <div class="ml-auto flex items-center gap-1 sm:gap-2">
                 {/* Buscador de escritorio; en móvil va dentro del drawer */}
@@ -138,21 +147,18 @@ try {
                                 <a href="/tienda" class="rounded-lg px-2.5 py-2.5 text-sm font-semibold transition-colors hover:bg-white/10">
                                     Ver todo el catálogo
                                 </a>
-                                <p class="px-2.5 pt-2 pb-1 font-mono text-[10px] tracking-wide text-green-200/70 uppercase">Por área</p>
-                                {tiendaAreas.map((area) => {
-                                    const existe = categoriasExistentes.has(area.slug);
-                                    return existe ? (
-                                        <a
-                                            href={`/tienda/${area.slug}`}
-                                            class="rounded-lg px-2.5 py-2.5 text-sm transition-colors hover:bg-white/10"
-                                        >{area.name}</a>
-                                    ) : (
-                                        <span class="flex items-center justify-between gap-2 px-2.5 py-2.5 text-sm text-green-200/60">
-                                            {area.name}
-                                            <span class="font-mono text-[9px] tracking-wide uppercase">Próx.</span>
-                                        </span>
-                                    );
-                                })}
+                                {areas.length > 0 && (
+                                    <p class="px-2.5 pt-2 pb-1 font-mono text-[10px] tracking-wide text-green-200/70 uppercase">Por área</p>
+                                )}
+                                {areas.map((area) => (
+                                    <a
+                                        href={`/tienda/${area.slug}`}
+                                        class="flex items-center justify-between gap-2 rounded-lg px-2.5 py-2.5 text-sm transition-colors hover:bg-white/10"
+                                    >
+                                        {area.name}
+                                        <span class="font-mono text-[10px] text-green-200/60">{area.count}</span>
+                                    </a>
+                                ))}
                             </div>
                         </details>
                     ) : (

@@ -13,6 +13,7 @@
 import ProductCard from '@/components/product/ProductCard.astro';
 import { Image } from 'astro:assets';
 import type { WooProduct, WooCategory } from '@/lib/api';
+import { CATEGORIAS_OCULTAS } from '@/lib/categorias';
 import type { ImageMetadata } from 'astro';
 import raizVivaImg from '@/assets/raizViva/raiz-viva-producto-frente.webp';
 
@@ -20,28 +21,36 @@ interface Props {
     title: string;
     products: WooProduct[];
     categorias: WooCategory[];
+    /** id → nº de productos de TODA la rama. Ver conteosDeRama en
+     * @/lib/categorias: el `count` que trae Woo solo cuenta lo asignado
+     * directamente, así que un área como "Maquinarias" figuraba con 0. */
+    conteos: Map<number, number>;
     currentSlug?: string;    // slug de la categoría activa (undefined = /tienda general)
     badge?: string;          // etiqueta de categoría para las tarjetas
     totalCatalogo?: number;  // total del catálogo, para el contador de "Todas las categorías"
     description?: string;    // bajada bajo el título de la banda superior
 }
 
-const { title, products, categorias, currentSlug, badge, totalCatalogo, description } = Astro.props;
+const { title, products, categorias, conteos, currentSlug, badge, totalCatalogo, description } = Astro.props;
 
 // El sidebar agrupa las subcategorías dentro de su padre y las despliega en un
-// acordeón: con 23 categorías, listarlas planas llenaba la pantalla completa
+// acordeón: con 30 categorías, listarlas planas llenaba la pantalla completa
 // (y en móvil obligaba a un scroll largo dentro del drawer).
 // "Sin categorizar" no se muestra: es una categoría técnica de WooCommerce, no
 // algo que un cliente busque. Sus productos siguen apareciendo en "Todas".
-const OCULTAS = ['sin-categorizar'];
-
-const visibles = categorias.filter((c) => !OCULTAS.includes(c.slug));
+const visibles = categorias.filter((c) => !CATEGORIAS_OCULTAS.includes(c.slug));
 const hijosDe = (id: number) => visibles.filter((c) => c.parent === id);
 
+// Cuántos productos mostrar junto a cada categoría. Siempre el total de la
+// rama, que es lo que el usuario va a encontrar al entrar.
+const total = (c: WooCategory) => conteos.get(c.id) ?? c.count;
+
 // Las raíz primero por volumen de catálogo: lo que más tiene, más arriba.
+// Se ordena por el total de la rama; con el `count` de Woo, las áreas nuevas
+// (cuyos productos cuelgan de las hijas) quedaban al fondo marcando 0.
 const padres = visibles
     .filter((c) => c.parent === 0)
-    .sort((a, b) => b.count - a.count);
+    .sort((a, b) => total(b) - total(a));
 
 // Rango real de precios (para el filtro y su leyenda).
 const precios = products.map((p) => Number(p.price)).filter((n) => n > 0);
@@ -233,7 +242,7 @@ const vitrinas = currentSlug ? [] : AREAS_VITRINA
                                         ]}
                                     >
                                         <span>{padre.name}</span>
-                                        <span class="font-mono text-xs text-muted">{padre.count}</span>
+                                        <span class="font-mono text-xs text-muted">{total(padre)}</span>
                                     </a>
                                 </li>
                             );
@@ -253,7 +262,7 @@ const vitrinas = currentSlug ? [] : AREAS_VITRINA
                                         >
                                             <span>{padre.name}</span>
                                             <span class="flex items-center gap-1.5">
-                                                <span class="font-mono text-xs text-muted">{padre.count}</span>
+                                                <span class="font-mono text-xs text-muted">{total(padre)}</span>
                                                 <svg class="size-3.5 text-muted transition-transform group-open:rotate-90" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                                                     <path d="m9 6 6 6-6 6" />
                                                 </svg>
@@ -280,7 +289,7 @@ const vitrinas = currentSlug ? [] : AREAS_VITRINA
                                                         ]}
                                                     >
                                                         <span>{hijo.name}</span>
-                                                        <span class="font-mono text-xs text-muted">{hijo.count}</span>
+                                                        <span class="font-mono text-xs text-muted">{total(hijo)}</span>
                                                     </a>
                                                 </li>
                                             ))}

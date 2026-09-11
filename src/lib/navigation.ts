@@ -17,21 +17,22 @@ export const navigation: NavItem[] = [
     { name: "Contacto", href: "/contacto" },
 ];
 
-// Áreas que el cliente pidió agrupar bajo "Tienda" (2026-09-03). Ninguna
-// existe todavía como categoría en WooCommerce salvo "Repuestos" (creada,
-// sin productos). El slug es una PROPUESTA: si el cliente crea la categoría
-// en WP con ese slug exacto, el enlace se activa solo en el próximo build —
-// Header.astro decide en build-time cuál mostrar como link real y cuál como
-// "próximamente" comparando contra las categorías que existen de verdad.
-export type NavArea = {
-    name: string;
-    slug: string;
-};
-
-export const tiendaAreas: NavArea[] = [
-    { name: "Repuestos", slug: "repuestos" },
-    { name: "Herramientas", slug: "herramientas" },
-    { name: "Huertos y agrícolas", slug: "huertos-y-agricolas" },
-    { name: "Maquinarias", slug: "maquinarias" },
-    { name: "Área forestal", slug: "area-forestal" },
+// Orden en que se listan las áreas dentro del dropdown de "Tienda".
+//
+// Ya NO es la lista de áreas: esas se leen de WooCommerce (ver
+// areasDeTienda en @/lib/categorias), así que el nombre y el slug salen
+// siempre de WordPress y crear o renombrar un área no exige tocar el código.
+// Aquí solo se decide el ORDEN, que es una decisión comercial y no algo que
+// la API pueda saber.
+//
+// Sigue el orden que pidió el cliente (2026-09-03) y cierra con "jardineria",
+// que ya existía y es hoy el área con más catálogo. Un slug que no esté en
+// esta lista no desaparece: se muestra al final, por nombre.
+export const ORDEN_AREAS: string[] = [
+    "repuestos",
+    "herramientas",
+    "huertos-y-agricolas",
+    "maquinarias",
+    "area-forestal",
+    "jardineria",
 ];

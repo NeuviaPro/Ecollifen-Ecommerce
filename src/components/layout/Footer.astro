@@ -1,21 +1,39 @@
 ---
 import FooterBox from "./FooterBox.astro";
 import type { FooterLink } from "./FooterBox.astro";
+import { getAllWooCategories, getCatalogoCompleto } from "@/lib/api";
+import { areasDeTienda, conteosDeRama } from "@/lib/categorias";
 
 type FooterColumn = {
     title: string,
     items: FooterLink[],
 }
 
-// Los enlaces de Tienda apuntan a categorías REALES de WooCommerce; si mañana
-// cambian los slugs, hay que actualizarlos aquí (o pasar a leerlos de la API).
+// Los enlaces de Tienda salen de WooCommerce, no de una lista escrita a mano:
+// estaban apuntando a "/tienda/agricola", un slug que dejó de existir al
+// reordenar el catálogo (pasó a ser "huertos-y-agricolas") y quedó en 404.
+// Se muestran las 3 áreas con más catálogo; ambas llamadas están memoizadas.
+let areasDestacadas: { name: string, slug: string }[] = [];
+try {
+    const [categorias, productos] = await Promise.all([
+        getAllWooCategories(),
+        getCatalogoCompleto(),
+    ]);
+    areasDestacadas = areasDeTienda(categorias, conteosDeRama(categorias, productos))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 3);
+} catch (error) {
+    console.error('[footer] No se pudieron cargar las categorías:', error);
+}
+
 const columns: FooterColumn[] = [
     {
         title: 'Tienda',
         items: [
-            { name: 'Agrícola', href: '/tienda/agricola' },
-            { name: 'Jardinería', href: '/tienda/jardineria' },
-            { name: 'Herramientas a batería', href: '/tienda/herramientas-a-bateria' },
+            ...areasDestacadas.map((area) => ({
+                name: area.name,
+                href: `/tienda/${area.slug}`,
+            })),
             { name: 'Ver todo el catálogo', href: '/tienda' },
         ],
     },

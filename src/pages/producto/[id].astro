@@ -1,7 +1,7 @@
 ---
 import Layout from '@/layouts/Layout.astro';
 import ProductCard from '@/components/product/ProductCard.astro';
-import { getAllWooProducts, getAllWooCategories } from '@/lib/api';
+import { getCatalogoCompleto, getAllWooCategories } from '@/lib/api';
 import type { WooProduct } from '@/lib/api';
 import { asesoriaHref, hayWhatsApp } from '@/lib/contacto';
 
@@ -12,7 +12,7 @@ export async function getStaticPaths() {
     const RELACIONADOS = 4;
 
     const [products, categorias] = await Promise.all([
-        getAllWooProducts(),
+        getCatalogoCompleto(),
         getAllWooCategories(),
     ]);
 

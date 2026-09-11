@@ -7,12 +7,12 @@
 // producto tal cual, y los precios en vivo siguen funcionando sin nada extra.
 import Layout from '@/layouts/Layout.astro';
 import ProductCard from '@/components/product/ProductCard.astro';
-import { getAllWooProducts } from '@/lib/api';
+import { getCatalogoCompleto } from '@/lib/api';
 import type { WooProduct } from '@/lib/api';
 
 let productos: WooProduct[] = [];
 try {
-    productos = await getAllWooProducts();
+    productos = await getCatalogoCompleto();
 } catch (error) {
     console.error('[busqueda] No se pudo cargar el catálogo:', error);
 }

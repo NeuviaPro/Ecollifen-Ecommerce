@@ -1,8 +1,9 @@
 ---
 import Layout from '@/layouts/Layout.astro';
 import Catalogo from '@/components/product/Catalogo.astro';
-import { getAllWooCategories, getAllWooProducts } from '@/lib/api';
+import { getAllWooCategories, getCatalogoCompleto } from '@/lib/api';
 import type { WooCategory, WooProduct } from '@/lib/api';
+import { conteosDeRama, productosDeRama } from '@/lib/categorias';
 
 // Una página estática por cada categoría REAL de WooCommerce, INCLUIDAS las
 // que aún no tienen productos (getAllWooCategories, no getWooCategories: esa
@@ -14,15 +15,22 @@ export async function getStaticPaths() {
     // era una petición por categoría (23 en total) contra un WordPress lento.
     const [categorias, todos] = await Promise.all([
         getAllWooCategories(),
-        getAllWooProducts(),
+        getCatalogoCompleto(),
     ]);
+
+    const conteos = conteosDeRama(categorias, todos);
 
     return categorias.map((category) => ({
         params: { categoria: category.slug },
         props: {
             category,
             categorias,
-            products: todos.filter((p) => p.categories?.some((c) => c.id === category.id)),
+            conteos,
+            // La rama completa, no solo lo asignado a esta categoría: entrar a
+            // un área ("Maquinarias") tiene que mostrar lo que cuelga de sus
+            // subcategorías. Así el cliente asigna cada producto SOLO a la
+            // categoría más específica y no tiene que marcar también el área.
+            products: productosDeRama(categorias, todos, category.id),
             totalCatalogo: todos.length,
         },
     }));
@@ -31,11 +39,12 @@ export async function getStaticPaths() {
 interface Props {
     category: WooCategory;
     categorias: WooCategory[];
+    conteos: Map<number, number>;
     products: WooProduct[];
     totalCatalogo: number;
 }
 
-const { category, categorias, products, totalCatalogo } = Astro.props as Props;
+const { category, categorias, conteos, products, totalCatalogo } = Astro.props as Props;
 
 // La descripción de categoría en Woo puede traer HTML del editor; se limpia
 // antes de usarla como bajada de texto plano bajo el título.
@@ -51,6 +60,7 @@ const descripcion = (category.description || '')
         title={category.name}
         products={products}
         categorias={categorias}
+        conteos={conteos}
         currentSlug={category.slug}
         badge={category.name}
         totalCatalogo={totalCatalogo}

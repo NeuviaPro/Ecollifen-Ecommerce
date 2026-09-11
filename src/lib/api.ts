@@ -155,6 +155,18 @@ export async function getAllWooProducts(category?: number): Promise<WooProduct[]
     return wooGetAll<WooProduct>("/wc/v3/products", params, "los productos");
 }
 
+// Igual que getAllWooProducts() sin filtro, pero memoizado. Desde que el
+// header y el footer calculan cuántos productos tiene cada área (contando la
+// rama completa, no solo lo asignado al área), el catálogo hace falta en cada
+// una de las ~120 páginas del build: sin cachear serían ~120 recorridos
+// paginados contra un WordPress compartido.
+let catalogoCache: Promise<WooProduct[]> | null = null;
+
+export function getCatalogoCompleto(): Promise<WooProduct[]> {
+    if (!catalogoCache) catalogoCache = getAllWooProducts();
+    return catalogoCache;
+}
+
 // Productos para el carrusel de la home. Manda lo que el cliente marque como
 // "Destacado" en WooCommerce; si no alcanza para llenar el carrusel, se
 // completa con productos en stock, que son los que se pueden comprar hoy.
@@ -177,13 +189,6 @@ export async function getDestacados(limite = 12): Promise<WooProduct[]> {
     return [...destacados, ...relleno].slice(0, limite);
 }
 
-export async function getWooCategories(): Promise<WooCategory[]> {
-    const params = wooAuth();
-    params.set("hide_empty", "true");
-
-    return wooGetAll<WooCategory>("/wc/v3/products/categories", params, "las categorías");
-}
-
 // Todas las categorías, incluidas las que aún no tienen productos (Woo, por
 // defecto, las esconde). Hace falta para /tienda/[categoria]: si una
 // categoría existe pero está vacía (ej. "Repuestos", "Raíz Viva"), su página
@@ -191,6 +196,10 @@ export async function getWooCategories(): Promise<WooCategory[]> {
 // no generarse y devolver 404, que fue justo el bug que encontramos el
 // 2026-09-03: los enlaces a categorías nuevas y vacías daban 404 porque
 // getStaticPaths solo miraba categorías con productos.
+//
+// Era la única versión que quedaba: la variante con hide_empty=true se eliminó
+// porque escondía las áreas raíz del catálogo reestructurado (2026-09-11), que
+// tienen sus productos en las subcategorías y figuran con count=0.
 let categoriasCache: Promise<WooCategory[]> | null = null;
 
 export function getAllWooCategories(): Promise<WooCategory[]> {

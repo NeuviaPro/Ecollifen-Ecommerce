@@ -8,7 +8,7 @@
 // buscador recién tras el siguiente `npm run deploy`, igual que el resto del
 // contenido estático del sitio.
 import type { APIRoute } from 'astro';
-import { getAllWooProducts } from '@/lib/api';
+import { getCatalogoCompleto } from '@/lib/api';
 import type { WooProduct } from '@/lib/api';
 import { normaliza, type ItemIndice } from '@/lib/buscador';
 
@@ -23,7 +23,7 @@ export const GET: APIRoute = async () => {
     let productos: WooProduct[] = [];
 
     try {
-        productos = await getAllWooProducts();
+        productos = await getCatalogoCompleto();
     } catch (error) {
         console.error('[buscador] No se pudo generar el índice:', error);
     }

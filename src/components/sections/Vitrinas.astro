@@ -3,8 +3,9 @@
 // enlace y el contador salen de la API, así que no vuelven a desincronizarse.
 // El copy sí lo controlamos aquí, porque los nombres en Woo vienen en
 // mayúsculas y sin tildes ("HERRAMIENTAS A BATERIA").
-import { getWooCategories } from '@/lib/api';
+import { getAllWooCategories, getCatalogoCompleto } from '@/lib/api';
 import type { WooCategory } from '@/lib/api';
+import { conteosDeRama } from '@/lib/categorias';
 import { Image } from 'astro:assets';
 import type { ImageMetadata } from 'astro';
 
@@ -41,8 +42,14 @@ const vitrinas: Vitrina[] = [
 ];
 
 let categorias: WooCategory[] = [];
+let conteos = new Map<number, number>();
 try {
-    categorias = await getWooCategories();
+    const [cats, productos] = await Promise.all([
+        getAllWooCategories(),
+        getCatalogoCompleto(),
+    ]);
+    categorias = cats;
+    conteos = conteosDeRama(cats, productos);
 } catch (error) {
     console.error('[vitrinas] No se pudieron cargar las categorías:', error);
 }
@@ -56,10 +63,15 @@ for (const vitrina of vitrinas) {
     const categoria = categorias.find((c) => c.slug === vitrina.slug);
     if (!categoria) continue;
 
+    // Se cuenta la rama completa: "Jardinería" es un área cuyos productos
+    // cuelgan de sus subcategorías, y el `count` de Woo no los ve.
+    const total = conteos.get(categoria.id) ?? categoria.count;
+    if (total === 0) continue;   // sin productos, la tarjeta no lleva a nada
+
     const clave = Object.keys(fotos).find((k) => k.includes(`/vitrinas/${vitrina.slug}.`));
     tarjetas.push({
         ...vitrina,
-        count: categoria.count,
+        count: total,
         foto: clave ? fotos[clave]!.default : undefined,
     });
 }

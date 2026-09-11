@@ -1,15 +1,16 @@
 ---
-import { navigation, tiendaAreas } from '@/lib/navigation';
+import { navigation } from '@/lib/navigation';
+import type { Area } from '@/lib/categorias';
 
 interface Props {
     class?: string;
-    /** Slugs de categoría que existen de verdad en WooCommerce hoy — decide
-     * qué área del dropdown de Tienda es un link real y cuál va como
-     * "próximamente". Ver navigation.ts para el porqué. */
-    categoriasExistentes: Set<string>;
+    /** Áreas del dropdown de Tienda: las categorías RAÍZ de WooCommerce, con el
+     * total de productos de toda su rama. Las arma el Header (ver
+     * areasDeTienda en @/lib/categorias), así que aquí no se asume ningún slug. */
+    areas: Area[];
 }
 
-const { class: className, categoriasExistentes } = Astro.props;
+const { class: className, areas } = Astro.props;
 
 // El rediseño marca en verde claro la sección en la que estás. Se compara con
 // startsWith para que /tienda/motosierras siga marcando "Tienda".
@@ -50,22 +51,19 @@ const enTienda = ruta.startsWith('/tienda');
 
                     <div class="my-1.5 border-t border-border"></div>
 
-                    <p class="px-3 pt-1 pb-1.5 font-mono text-[10px] tracking-wide text-muted uppercase">Por área</p>
+                    {areas.length > 0 && (
+                        <p class="px-3 pt-1 pb-1.5 font-mono text-[10px] tracking-wide text-muted uppercase">Por área</p>
+                    )}
 
-                    {tiendaAreas.map((area) => {
-                        const existe = categoriasExistentes.has(area.slug);
-                        return existe ? (
-                            <a
-                                href={`/tienda/${area.slug}`}
-                                class="block rounded-lg px-3 py-2 text-sm text-foreground transition-colors hover:bg-surface-alt"
-                            >{area.name}</a>
-                        ) : (
-                            <span class="flex items-center justify-between gap-2 rounded-lg px-3 py-2 text-sm text-muted">
-                                {area.name}
-                                <span class="font-mono text-[10px] tracking-wide uppercase">Próximamente</span>
-                            </span>
-                        );
-                    })}
+                    {areas.map((area) => (
+                        <a
+                            href={`/tienda/${area.slug}`}
+                            class="flex items-center justify-between gap-2 rounded-lg px-3 py-2 text-sm text-foreground transition-colors hover:bg-surface-alt"
+                        >
+                            {area.name}
+                            <span class="font-mono text-[10px] text-muted">{area.count}</span>
+                        </a>
+                    ))}
                 </div>
             </div>
         ) : (
