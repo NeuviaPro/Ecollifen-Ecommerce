@@ -8,14 +8,16 @@
 //    humus y mejorador con biochar no existen en ningún documento aprobado.
 //    Se implementan 2 tarjetas reales + un cierre honesto que invita a
 //    consultar, en vez de inventar dos productos más.
-// 2. WooCommerce ya tiene la categoría `raiz-viva` (id 42, sin productos
-//    todavía). Los CTA de compra apuntan ahí, no a /tienda genérico: hoy
-//    mostrará "aún no hay productos" — cierto — y en cuanto se cargue el
-//    primer producto, empieza a funcionar solo.
+// 2. WooCommerce ya tiene la categoría `raiz-viva` (sin productos todavía).
+//    Los CTA de compra apuntan ahí, no a /tienda genérico: hoy mostrará
+//    "aún no hay productos" — cierto — y en cuanto se cargue el primer
+//    producto, empieza a funcionar solo.
+// 3. (2026-09-11) El hero pasó a una sola columna con la foto de marca
+//    `raizVivaHero.png`, que reemplaza al logo en caja + la foto de ambiente.
+//    El porqué está junto a la sección.
 import Layout from '@/layouts/Layout.astro';
-import { Image } from 'astro:assets';
-import logoRaizViva from '@/assets/raizViva/raiz-viva.webp';
-import productoAmbiente from '@/assets/raizViva/raiz-viva-producto.webp';
+import { Image, Picture } from 'astro:assets';
+import heroRaizViva from '@/assets/raizViva/raizVivaHero.png';
 import productoFrente from '@/assets/raizViva/raiz-viva-producto-frente.webp';
 import { asesoriaHref } from '@/lib/contacto';
 import NavRaices from '@/components/raizViva/NavRaices.astro';
@@ -59,7 +61,15 @@ const pasos = [
 <Layout title="Raíz Viva">
     <NavRaices />
     {/* Hero — fondo Tierra oscuro (earth-700), CTA en Dorado por contraste:
-        un botón Tierra sobre fondo Tierra casi no se distinguiría. */}
+        un botón Tierra sobre fondo Tierra casi no se distinguiría.
+
+        Composición en UNA columna, no en dos: la foto de marca ya trae el
+        logotipo "RAÍZ VIVA" a la izquierda y el producto a la derecha, así que
+        es autosuficiente. Partirla en una columna la recortaría justo por el
+        logotipo, y superponerle texto competiría con él (y duplicaría la
+        marca). Por eso el copy va ARRIBA, centrado, y la foto debajo como
+        pieza protagonista, enmarcada para que su fondo claro no choque a
+        borde vivo con la tierra oscura de la sección. */}
     <section id="origen" class="hero-raiz relative isolate scroll-mt-24 overflow-hidden bg-earth-700 text-earth-50">
         {/* Capas de vida sobre la tierra. La página entera era Tierra sobre
             Tierra: el verde es el color dominante de la marca y aquí no
@@ -68,9 +78,10 @@ const pasos = [
         <div class="pointer-events-none absolute inset-0 -z-10 opacity-70 mezcla-vida"></div>
 
         {/* Raíz de fondo: la misma forma del nav, en grande y casi invisible.
-            Ata visualmente la marca con su propia metáfora. */}
+            Ata visualmente la marca con su propia metáfora. Centrada detrás
+            del texto, ahora que el hero dejó de ser de dos columnas. */}
         <svg
-            class="pointer-events-none absolute -top-10 -right-6 -z-10 h-[130%] w-auto text-green-500/10 md:right-1/3"
+            class="pointer-events-none absolute -top-16 left-1/2 -z-10 h-[85%] w-auto -translate-x-1/2 text-green-500/10"
             viewBox="0 0 200 600" fill="none" aria-hidden="true"
         >
             <g stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
@@ -84,54 +95,64 @@ const pasos = [
             </g>
         </svg>
 
-        <div class="mx-auto max-w-6xl px-6">
-            <div class="grid items-center gap-14 lg:grid-cols-[1.02fr_0.98fr]">
-                <div class="py-16 md:py-20">
-                    <p class="font-mono text-[11px] font-semibold tracking-[0.18em] text-earth-100">
-                        MARCA PROPIA DE ECOLLIFÉN
-                    </p>
+        <div class="mx-auto max-w-6xl px-6 py-16 md:py-20">
+            <div class="mx-auto max-w-3xl text-center">
+                <p class="font-mono text-[11px] font-semibold tracking-[0.18em] text-earth-100">
+                    RAÍZ VIVA · MARCA PROPIA DE ECOLLIFÉN
+                </p>
 
-                    <div class="mt-5 size-32 overflow-hidden rounded-2xl bg-earth-50 p-2.5">
-                        <Image src={logoRaizViva} alt="Raíz Viva" class="h-full w-full object-contain" />
-                    </div>
+                {/* La página no tenía ningún h1: el título de marca vivía como
+                    imagen del logo y el resto arrancaba en h2. */}
+                <h1 class="mt-5 font-display text-4xl leading-[1.08] font-semibold text-balance text-white md:text-5xl lg:text-[3.4rem]">
+                    Volver al origen,<br class="hidden sm:block" /> cuidar la <span class="text-green-300 italic">raíz</span>.
+                </h1>
 
-                    <p class="mt-6 max-w-[30ch] border-l-2 border-green-500 pl-4 font-display text-2xl leading-tight text-earth-100 italic">
-                        Volver al origen, cuidar la <span class="text-green-300 not-italic">raíz</span>.
-                    </p>
+                <p class="mx-auto mt-6 max-w-xl text-lg leading-relaxed text-earth-50/85">
+                    Nuestra línea de sustratos y compost, desarrollada para quienes buscan
+                    mejorar la tierra de manera natural y sustentable. Formulada por
+                    Ecollifén en el sur de Chile.
+                </p>
 
-                    <p class="mt-6 max-w-lg text-lg leading-relaxed text-earth-50/85">
-                        Nuestra línea de sustratos y compost, desarrollada para quienes buscan
-                        mejorar la tierra de manera natural y sustentable. Formulada por
-                        Ecollifén en el sur de Chile.
-                    </p>
-
-                    <div class="mt-9 flex flex-wrap gap-3">
-                        <a
-                            href={CATEGORIA_HREF}
-                            class="inline-flex items-center justify-center rounded-xl bg-tech px-7 py-4 font-semibold text-tech-contrast transition-transform hover:-translate-y-0.5 hover:bg-gold-200"
-                        >
-                            Comprar Raíz Viva
-                        </a>
-                        <a
-                            href="#linea"
-                            class="inline-flex items-center justify-center rounded-xl border-[1.5px] border-earth-100/45 px-7 py-4 font-semibold text-earth-50 transition-colors hover:border-earth-100 hover:bg-white/10"
-                        >
-                            Ver la línea
-                        </a>
-                    </div>
-                </div>
-
-                <div class="relative min-h-140 self-stretch md:min-h-150">
-                    <Image
-                        src={productoAmbiente}
-                        alt="Sustrato Raíz Viva"
-                        widths={[480, 768, 1024]}
-                        sizes="(min-width: 1024px) 50vw, 100vw"
-                        class="absolute inset-0 h-full w-full object-cover"
-                    />
-                    <div class="absolute inset-0 bg-[linear-gradient(90deg,#4c2411_0%,rgba(76,36,17,.35)_34%,rgba(76,36,17,0)_70%)]"></div>
+                <div class="mt-9 flex flex-wrap justify-center gap-3">
+                    <a
+                        href={CATEGORIA_HREF}
+                        class="inline-flex items-center justify-center rounded-xl bg-tech px-7 py-4 font-semibold text-tech-contrast transition-transform hover:-translate-y-0.5 hover:bg-gold-200"
+                    >
+                        Comprar Raíz Viva
+                    </a>
+                    <a
+                        href="#linea"
+                        class="inline-flex items-center justify-center rounded-xl border-[1.5px] border-earth-100/45 px-7 py-4 font-semibold text-earth-50 transition-colors hover:border-earth-100 hover:bg-white/10"
+                    >
+                        Ver la línea
+                    </a>
                 </div>
             </div>
+
+            {/* Foto de marca. Es el LCP de la página: se carga con prioridad y
+                sin lazy.
+                En móvil gana algo de alto recortándose a 16/10 (a 2:1 nativo
+                quedaría como una franja de ~170 px), pero CENTRADA y sin más
+                recorte que ese: probando con 4/3 el borde izquierdo partía el
+                logotipo "RAÍZ VIVA" por la mitad. Desde sm se ve completa.
+                fallbackFormat="jpeg" porque el original es un PNG de 2 MB y es
+                una FOTO: el fallback en PNG pesaba 2,9 MB, contra ~70 KB del
+                avif equivalente. */}
+            <figure class="relative mt-14 md:mt-16" data-anim>
+                <div class="overflow-hidden rounded-3xl shadow-[0_36px_90px_-34px_rgba(0,0,0,.8)] ring-1 ring-earth-100/20">
+                    <Picture
+                        src={heroRaizViva}
+                        formats={['avif', 'webp']}
+                        fallbackFormat="jpeg"
+                        alt="Bolsa de sustrato Raíz Viva sobre una mesa de madera, junto a almácigos, plantas y tierra, con el logotipo de la línea al costado"
+                        widths={[640, 960, 1280, 1774]}
+                        sizes="(min-width: 1152px) 1088px, 100vw"
+                        loading="eager"
+                        fetchpriority="high"
+                        class="aspect-16/10 w-full object-cover object-center sm:aspect-2/1"
+                    />
+                </div>
+            </figure>
         </div>
     </section>
 

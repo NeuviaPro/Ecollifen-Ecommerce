@@ -4,6 +4,7 @@ import Catalogo from '@/components/product/Catalogo.astro';
 import { getAllWooCategories, getCatalogoCompleto } from '@/lib/api';
 import type { WooCategory, WooProduct } from '@/lib/api';
 import { conteosDeRama, productosDeRama } from '@/lib/categorias';
+import { ordenarPorDisponibilidad } from '@/lib/productos';
 
 // Una página estática por cada categoría REAL de WooCommerce, INCLUIDAS las
 // que aún no tienen productos (getAllWooCategories, no getWooCategories: esa
@@ -30,7 +31,8 @@ export async function getStaticPaths() {
             // un área ("Maquinarias") tiene que mostrar lo que cuelga de sus
             // subcategorías. Así el cliente asigna cada producto SOLO a la
             // categoría más específica y no tiene que marcar también el área.
-            products: productosDeRama(categorias, todos, category.id),
+            // Los agotados van al final, pero siguen visibles (@/lib/productos).
+            products: ordenarPorDisponibilidad(productosDeRama(categorias, todos, category.id)),
             totalCatalogo: todos.length,
         },
     }));

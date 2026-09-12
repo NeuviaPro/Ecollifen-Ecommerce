@@ -4,6 +4,7 @@ import ProductCard from '@/components/product/ProductCard.astro';
 import { getCatalogoCompleto, getAllWooCategories } from '@/lib/api';
 import type { WooProduct } from '@/lib/api';
 import { asesoriaHref, hayWhatsApp } from '@/lib/contacto';
+import { sanearContenidoWP } from '@/lib/contenido-wp';
 
 // Una página estática por producto de WooCommerce.
 export async function getStaticPaths() {
@@ -55,15 +56,52 @@ export async function getStaticPaths() {
         return salida.slice(0, RELACIONADOS);
     };
 
-    return products.map((product) => ({
-        params: { id: String(product.id) },
-        props: { product, relacionados: relacionadosDe(product) },
+    // Las descripciones vienen de WordPress y arrastran enlaces a archivos que
+    // no existen (ver @/lib/contenido-wp). Se limpian ACÁ, una sola vez por
+    // producto, y no dentro del componente: las URLs se comprueban por red.
+    const conEnlacesRotos: { nombre: string, urls: string[] }[] = [];
+
+    const rutas = await Promise.all(products.map(async (product) => {
+        const [descripcion, resumen] = await Promise.all([
+            sanearContenidoWP(product.description || ''),
+            sanearContenidoWP(product.short_description || ''),
+        ]);
+
+        const urls = [...new Set([...descripcion.rotos, ...resumen.rotos])];
+        if (urls.length > 0) conEnlacesRotos.push({ nombre: product.name, urls });
+
+        return {
+            params: { id: String(product.id) },
+            props: {
+                product,
+                relacionados: relacionadosDe(product),
+                descripcionHTML: descripcion.html,
+                resumenHTML: resumen.html,
+            },
+        };
     }));
+
+    // Se avisa en cada build: lo de arriba esconde el síntoma, pero el arreglo
+    // de verdad es corregir esas descripciones en WooCommerce.
+    if (conEnlacesRotos.length > 0) {
+        const total = new Set(conEnlacesRotos.flatMap((p) => p.urls)).size;
+        console.warn(
+            `[producto] ${conEnlacesRotos.length} producto(s) con ${total} enlace(s) rotos a wp-content/uploads. ` +
+            `Se quitaron del HTML publicado; conviene limpiarlos en WooCommerce:`
+        );
+        for (const { nombre, urls } of conEnlacesRotos) {
+            console.warn(`  · ${nombre} (${urls.length})`);
+        }
+    }
+
+    return rutas;
 }
 
-const { product, relacionados } = Astro.props as {
+const { product, relacionados, descripcionHTML, resumenHTML } = Astro.props as {
     product: WooProduct,
     relacionados: WooProduct[],
+    descripcionHTML: string,
+    resumenHTML: string,
 };
 
 const money = new Intl.NumberFormat('es-CL', {
@@ -131,7 +169,7 @@ const contenidoWP = "leading-relaxed [&_p]:mb-3 [&_ul]:my-3 [&_ul]:list-disc [&_
 
 // Open Graph: para que un link de producto compartido por WhatsApp muestre su
 // propia foto, nombre y precio en vez de la tarjeta genérica del sitio.
-const descripcionOG = (product.short_description || product.description || '')
+const descripcionOG = (resumenHTML || descripcionHTML || '')
     .replace(/<[^>]*>/g, ' ')
     .replace(/&[a-z]+;|&#\d+;/gi, ' ')
     .replace(/\s+/g, ' ')
@@ -231,8 +269,8 @@ const descripcionOG = (product.short_description || product.description || '')
                         )}
                     </div>
 
-                    {product.short_description && (
-                        <div class:list={["mt-5 text-muted", contenidoWP]} set:html={product.short_description} />
+                    {resumenHTML && (
+                        <div class:list={["mt-5 text-muted", contenidoWP]} set:html={resumenHTML} />
                     )}
 
                     {/* Cantidad + compra. El contenedor data-compra es lo que lee
@@ -306,14 +344,14 @@ const descripcionOG = (product.short_description || product.description || '')
                 En dos columnas a propósito: en una sola, la descripción de Woo
                 quedaba como una franja angosta de texto con media pantalla
                 vacía al lado. */}
-            {(product.description || especificaciones.length > 0) && (
+            {(descripcionHTML || especificaciones.length > 0) && (
                 <div class="mt-16 grid gap-10 lg:grid-cols-[1fr_340px]">
                     <div data-anim>
-                        {product.description && (
+                        {descripcionHTML && (
                             <Fragment>
                                 <h2 class="font-display text-2xl font-semibold text-primary">Descripción</h2>
                                 <div class="mt-1.5 h-1 w-12 rounded-full bg-gold-500"></div>
-                                <div class:list={["mt-5 max-w-prose text-foreground", contenidoWP]} set:html={product.description} />
+                                <div class:list={["mt-5 max-w-prose text-foreground", contenidoWP]} set:html={descripcionHTML} />
                             </Fragment>
                         )}
                     </div>

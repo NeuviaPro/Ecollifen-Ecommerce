@@ -39,8 +39,17 @@ const tituloCompleto = `Ecollifén | ${title}`;
 	<head>
 		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width" />
-		<link rel="icon" type="image/svg+xml" href="/src/assets/ecollifenLogo.png" />
-		<link rel="icon" href="/favicon.ico" />
+		{/* Favicon. Apunta a archivos de public/, que es lo único que se sirve
+			tal cual: antes esto era href="/src/assets/ecollifenLogo.png" y daba
+			404 en producción (Astro no publica src/, solo lo procesa al
+			importarlo), además de declarar type="image/svg+xml" sobre un PNG.
+			Los iconos son un RECORTE del isotipo del logo, sin el wordmark
+			"ECOLLIFÉN", que a 32px es una mancha ilegible. Se regeneran con
+			scripts/generar-favicon.mjs si cambia el logo. */}
+		<link rel="icon" href="/favicon.ico" sizes="32x32" />
+		<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+		<link rel="icon" type="image/png" sizes="192x192" href="/favicon-192.png" />
+		<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
 		<meta name="generator" content={Astro.generator} />
 		<title>{tituloCompleto}</title>
 		<meta name="description" content={description} />

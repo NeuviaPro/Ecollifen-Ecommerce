@@ -4,6 +4,7 @@ import Catalogo from '@/components/product/Catalogo.astro';
 import { getAllWooCategories, getCatalogoCompleto } from '@/lib/api';
 import type { WooCategory, WooProduct } from '@/lib/api';
 import { conteosDeRama } from '@/lib/categorias';
+import { ordenarPorDisponibilidad } from '@/lib/productos';
 
 // Catálogo completo. Las categorías (sidebar) salen reales de WooCommerce —
 // incluidas las vacías, para que se puedan descubrir aunque aún no tengan
@@ -22,12 +23,15 @@ try {
 
 // Contadores del sidebar: por rama completa, no por asignación directa.
 const conteos = conteosDeRama(categorias, products);
+
+// Los agotados, al final (siguen visibles: ver @/lib/productos).
+const productosOrdenados = ordenarPorDisponibilidad(products);
 ---
 
 <Layout title="Tienda">
     <Catalogo
         title="Tienda"
-        products={products}
+        products={productosOrdenados}
         categorias={categorias}
         conteos={conteos}
         totalCatalogo={products.length}
