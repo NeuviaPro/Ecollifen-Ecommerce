@@ -2,11 +2,7 @@
 node_modules
 
 .astro/
-scripts/
-# custom scripts
-scripts/
 .claude/
-.vscode/
 CLAUDE.md
 AGENTS.md
 
