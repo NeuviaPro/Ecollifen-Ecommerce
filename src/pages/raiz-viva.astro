@@ -19,10 +19,35 @@ import Layout from '@/layouts/Layout.astro';
 import { Image, Picture } from 'astro:assets';
 import heroRaizViva from '@/assets/raizViva/raizVivaHero.png';
 import productoFrente from '@/assets/raizViva/raiz-viva-producto-frente.webp';
+import logoRaizViva from '@/assets/raizViva/raiz-viva.webp';
 import { asesoriaHref } from '@/lib/contacto';
 import NavRaices from '@/components/raizViva/NavRaices.astro';
+import ProductCard from '@/components/product/ProductCard.astro';
+import { getAllWooCategories, getCatalogoCompleto } from '@/lib/api';
+import { productosDeRama } from '@/lib/categorias';
+import type { WooProduct } from '@/lib/api';
 
 const CATEGORIA_HREF = '/tienda/raiz-viva';
+const CATEGORIA_SLUG = 'raiz-viva';
+
+// Productos REALES de la línea, si el cliente ya cargó alguno en WooCommerce.
+// Hoy la categoría existe pero está vacía, así que esta lista viene en cero y
+// la sección cae en las tarjetas editoriales de más abajo. En cuanto se cargue
+// el primer sustrato, esta página pasa sola a mostrar precio y stock reales en
+// el siguiente build, sin tocar código — mismo criterio que el menú por áreas.
+let productosLinea: WooProduct[] = [];
+try {
+    const [categorias, catalogo] = await Promise.all([
+        getAllWooCategories(),
+        getCatalogoCompleto(),
+    ]);
+    const categoria = categorias.find((c) => c.slug === CATEGORIA_SLUG);
+    // Con la rama completa: si mañana cuelgan subcategorías de Raíz Viva
+    // (por formato, por ejemplo), sus productos también aparecen aquí.
+    if (categoria) productosLinea = productosDeRama(categorias, catalogo, categoria.id);
+} catch (error) {
+    console.error('[raiz-viva] No se pudieron cargar los productos de la línea:', error);
+}
 
 const stats = [
     { valor: '100%', label: 'ORIGEN NATURAL' },
@@ -183,71 +208,123 @@ const pasos = [
             </p>
         </div>
 
-        <div class="mt-9 grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3" data-anim-stagger>
-            {/* Sustrato — el único con imagen y copy ya aprobados */}
-            <article class="flex flex-col overflow-hidden rounded-2xl border border-earth-500/20 bg-surface transition-all duration-300 hover:-translate-y-1.5 hover:border-substrate hover:shadow-[0_20px_44px_-24px_rgba(122,59,30,.45)]">
-                <div class="relative aspect-4/3 overflow-hidden border-b border-earth-500/15 bg-white">
-                    <Image src={productoFrente} alt="Sustrato de Inicio Premium Raíz Viva" class="h-full w-full object-cover" />
-                    <span class="absolute top-3 left-3 rounded-md bg-substrate px-2.5 py-1 font-mono text-[10px] tracking-wider text-substrate-contrast uppercase">
-                        Sustrato
-                    </span>
-                </div>
-                <div class="flex flex-1 flex-col p-5">
-                    <h3 class="font-display text-xl font-semibold text-earth-700">Sustrato de Inicio Premium</h3>
-                    <p class="mt-2.5 text-sm leading-relaxed text-muted">
-                        Mezcla lista para siembra con compost, perlita, turba y humus. Para
-                        almácigos, huerto urbano y trasplantes.
-                    </p>
-                    <div class="mt-4 flex flex-wrap gap-1.5">
-                        {formatos.map((f) => (
-                            <span class="rounded-md border border-earth-500/30 px-2.5 py-1 text-xs font-medium text-substrate">{f}</span>
-                        ))}
+        {productosLinea.length > 0 ? (
+            /* Ya hay productos cargados en Woo: se muestran los REALES, con la
+               misma tarjeta del catálogo — precio, stock, carrito y precios en
+               vivo incluidos — en vez de las fichas escritas a mano. */
+            <div class="mt-9 grid grid-cols-2 gap-5 lg:grid-cols-3 lg:gap-7" data-anim-stagger>
+                {productosLinea.map((producto) => (
+                    <ProductCard product={producto} category="Raíz Viva" />
+                ))}
+            </div>
+        ) : (
+            <div class="mt-9 grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3" data-anim-stagger>
+                {/* Sustrato — el único con imagen y copy ya aprobados.
+                    El estado ("Pronto en tienda") va como chip sobre la foto y no
+                    en letra chica al pie: es lo primero que alguien necesita
+                    saber, y abajo competía con el enlace. */}
+                <article class="flex flex-col overflow-hidden rounded-2xl border border-earth-500/20 bg-surface transition-all duration-300 hover:-translate-y-1.5 hover:border-substrate hover:shadow-[0_20px_44px_-24px_rgba(122,59,30,.45)]">
+                    <div class="relative aspect-4/3 overflow-hidden border-b border-earth-500/15 bg-white">
+                        <Image src={productoFrente} alt="Sustrato de Inicio Premium Raíz Viva" class="h-full w-full object-cover" />
+                        <span class="absolute top-3 left-3 rounded-md bg-substrate px-2.5 py-1 font-mono text-[10px] tracking-wider text-substrate-contrast uppercase">
+                            Sustrato
+                        </span>
+                        <span class="absolute top-3 right-3 rounded-md bg-white/90 px-2.5 py-1 font-mono text-[10px] tracking-wider text-substrate uppercase shadow-sm">
+                            Pronto en tienda
+                        </span>
                     </div>
-                    <div class="mt-auto flex items-center justify-between gap-3 pt-5">
-                        <span class="font-mono text-[11px] tracking-wide text-muted">Disponible pronto en tienda</span>
-                        <a href={CATEGORIA_HREF} class="text-sm font-semibold text-substrate hover:text-earth-700">Ver →</a>
+                    <div class="flex flex-1 flex-col p-5">
+                        <h3 class="font-display text-xl font-semibold text-earth-700">Sustrato de Inicio Premium</h3>
+                        <p class="mt-2.5 text-sm leading-relaxed text-muted">
+                            Mezcla lista para siembra con compost, perlita, turba y humus. Para
+                            almácigos, huerto urbano y trasplantes.
+                        </p>
+                        <div class="mt-4 flex flex-wrap gap-1.5">
+                            {formatos.map((f) => (
+                                <span class="rounded-md border border-earth-500/30 px-2.5 py-1 text-xs font-medium text-substrate">{f}</span>
+                            ))}
+                        </div>
+                        <div class="mt-auto border-t border-earth-500/15 pt-4">
+                            <a href={CATEGORIA_HREF} class="inline-flex items-center gap-1.5 text-sm font-semibold text-substrate transition-colors hover:text-earth-700">
+                                Ver en la tienda
+                                <span aria-hidden="true">→</span>
+                            </a>
+                        </div>
                     </div>
-                </div>
-            </article>
+                </article>
 
-            {/* Compost — confirmado por el cliente, sin ficha ni foto todavía:
-                se muestra honesto en vez de inventar formatos o descripción técnica. */}
-            <article class="flex flex-col overflow-hidden rounded-2xl border border-earth-500/20 bg-surface transition-all duration-300 hover:-translate-y-1.5 hover:border-substrate hover:shadow-[0_20px_44px_-24px_rgba(122,59,30,.45)]">
-                <div class="relative aspect-4/3 overflow-hidden border-b border-earth-500/15 bg-[repeating-linear-gradient(135deg,#f6ede7_0_14px,#efe2d8_14px_28px)]">
-                    <span class="absolute top-3 left-3 rounded-md bg-substrate px-2.5 py-1 font-mono text-[10px] tracking-wider text-substrate-contrast uppercase">
-                        Compost
-                    </span>
-                </div>
-                <div class="flex flex-1 flex-col p-5">
-                    <h3 class="font-display text-xl font-semibold text-earth-700">Compost Raíz Viva</h3>
-                    <p class="mt-2.5 text-sm leading-relaxed text-muted">
-                        Materia orgánica para devolverle vida a un suelo cansado. En preparación
-                        junto al resto de la línea.
-                    </p>
-                    <div class="mt-auto flex items-center justify-between gap-3 pt-5">
-                        <span class="font-mono text-[11px] tracking-wide text-muted">En preparación</span>
-                        <a href="/contacto" class="text-sm font-semibold text-substrate hover:text-earth-700">Consultar →</a>
+                {/* Compost — confirmado por el cliente, sin ficha ni foto todavía:
+                    se muestra honesto en vez de inventar formatos o descripción.
+                    El hueco de la foto lleva el isotipo de la línea en marca de
+                    agua; las rayas diagonales que había antes se leían como una
+                    imagen rota, no como "todavía no hay foto". */}
+                <article class="flex flex-col overflow-hidden rounded-2xl border border-earth-500/20 bg-surface transition-all duration-300 hover:-translate-y-1.5 hover:border-substrate hover:shadow-[0_20px_44px_-24px_rgba(122,59,30,.45)]">
+                    <div class="relative flex aspect-4/3 items-center justify-center overflow-hidden border-b border-earth-500/15 bg-earth-50">
+                        <Image
+                            src={logoRaizViva}
+                            alt=""
+                            width={160}
+                            height={160}
+                            class="w-3/5 max-w-48 opacity-30 mix-blend-multiply"
+                        />
+                        <span class="absolute top-3 left-3 rounded-md bg-substrate px-2.5 py-1 font-mono text-[10px] tracking-wider text-substrate-contrast uppercase">
+                            Compost
+                        </span>
+                        <span class="absolute top-3 right-3 rounded-md bg-white/90 px-2.5 py-1 font-mono text-[10px] tracking-wider text-substrate uppercase shadow-sm">
+                            En preparación
+                        </span>
                     </div>
-                </div>
-            </article>
+                    <div class="flex flex-1 flex-col p-5">
+                        <h3 class="font-display text-xl font-semibold text-earth-700">Compost Raíz Viva</h3>
+                        <p class="mt-2.5 text-sm leading-relaxed text-muted">
+                            Materia orgánica para devolverle vida a un suelo cansado, antes de
+                            volver a plantar.
+                        </p>
+                        {/* Ocupa el alto de la fila de formatos de la tarjeta de al
+                            lado, para que los dos pies queden alineados en vez de
+                            dejar un vacío suelto. */}
+                        <p class="mt-4 text-xs leading-relaxed text-muted/80 italic">
+                            Formatos y ficha técnica por confirmar.
+                        </p>
+                        <div class="mt-auto border-t border-earth-500/15 pt-4">
+                            <a href="/contacto" class="inline-flex items-center gap-1.5 text-sm font-semibold text-substrate transition-colors hover:text-earth-700">
+                                Consultar disponibilidad
+                                <span aria-hidden="true">→</span>
+                            </a>
+                        </div>
+                    </div>
+                </article>
 
-            {/* Cierre honesto en vez de dos SKUs inventados (humus, mejorador con
-                biochar): invita a preguntar por lo que de verdad se necesita. */}
-            <article class="flex flex-col items-start justify-center rounded-2xl border-2 border-dashed border-earth-500/30 bg-earth-50/60 p-6">
-                <h3 class="font-display text-lg font-semibold text-earth-700">¿Buscas otra referencia?</h3>
-                <p class="mt-2 text-sm leading-relaxed text-muted">
-                    La línea sigue creciendo. Cuéntanos qué necesita tu suelo o tu cultivo y te
-                    decimos qué estamos preparando para eso.
-                </p>
-                <a
-                    href={asesoriaHref()}
-                    class="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-substrate hover:text-earth-700"
-                >
-                    Solicitar asesoría
-                    <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
-                </a>
-            </article>
-        </div>
+                {/* Cierre honesto en vez de dos SKUs inventados (humus, mejorador
+                    con biochar): invita a preguntar por lo que de verdad se
+                    necesita. Alineado ARRIBA, no centrado: al centrarlo, la grilla
+                    lo estiraba a la altura de las tarjetas con foto y su título
+                    terminaba flotando a la altura del pie de las vecinas. */}
+                <article class="flex flex-col rounded-2xl border-2 border-dashed border-earth-500/30 bg-earth-50/60 p-6">
+                    <span class="flex size-11 items-center justify-center rounded-xl bg-substrate/10 text-substrate">
+                        <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M12 20c0-4.4 2.7-8 6-8-.4 4.6-2.9 7.3-6 8Z" />
+                            <path d="M12 20c0-5.2-2.7-9-6-9 .4 5.3 2.9 8.2 6 9Z" />
+                            <path d="M12 20v-7" />
+                        </svg>
+                    </span>
+                    <h3 class="mt-4 font-display text-xl font-semibold text-earth-700">¿Buscas otra referencia?</h3>
+                    <p class="mt-2.5 text-sm leading-relaxed text-muted">
+                        La línea sigue creciendo. Cuéntanos qué necesita tu suelo o tu cultivo y te
+                        decimos qué estamos preparando para eso.
+                    </p>
+                    <div class="mt-auto pt-5">
+                        <a
+                            href={asesoriaHref()}
+                            class="inline-flex items-center gap-1.5 rounded-lg bg-substrate px-5 py-2.5 text-sm font-semibold text-substrate-contrast transition-colors hover:bg-earth-600"
+                        >
+                            Solicitar asesoría
+                            <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+                        </a>
+                    </div>
+                </article>
+            </div>
+        )}
     </section>
 
     {/* Producto estrella — mismo copy aprobado que ProductoEstrella.astro,
