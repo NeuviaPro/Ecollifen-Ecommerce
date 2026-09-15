@@ -1,39 +1,21 @@
 ---
 import FooterBox from "./FooterBox.astro";
 import type { FooterLink } from "./FooterBox.astro";
-import { getAllWooCategories, getCatalogoCompleto } from "@/lib/api";
-import { areasDeTienda, conteosDeRama } from "@/lib/categorias";
 
 type FooterColumn = {
     title: string,
     items: FooterLink[],
 }
 
-// Los enlaces de Tienda salen de WooCommerce, no de una lista escrita a mano:
-// estaban apuntando a "/tienda/agricola", un slug que dejó de existir al
-// reordenar el catálogo (pasó a ser "huertos-y-agricolas") y quedó en 404.
-// Se muestran las 3 áreas con más catálogo; ambas llamadas están memoizadas.
-let areasDestacadas: { name: string, slug: string }[] = [];
-try {
-    const [categorias, productos] = await Promise.all([
-        getAllWooCategories(),
-        getCatalogoCompleto(),
-    ]);
-    areasDestacadas = areasDeTienda(categorias, conteosDeRama(categorias, productos))
-        .sort((a, b) => b.count - a.count)
-        .slice(0, 3);
-} catch (error) {
-    console.error('[footer] No se pudieron cargar las categorías:', error);
-}
-
+// Los enlaces de Tienda apuntan a categorías REALES de WooCommerce; si mañana
+// cambian los slugs, hay que actualizarlos aquí (o pasar a leerlos de la API).
 const columns: FooterColumn[] = [
     {
         title: 'Tienda',
         items: [
-            ...areasDestacadas.map((area) => ({
-                name: area.name,
-                href: `/tienda/${area.slug}`,
-            })),
+            { name: 'Agrícola', href: '/tienda/agricola' },
+            { name: 'Jardinería', href: '/tienda/jardineria' },
+            { name: 'Herramientas a batería', href: '/tienda/herramientas-a-bateria' },
             { name: 'Ver todo el catálogo', href: '/tienda' },
         ],
     },
@@ -51,30 +33,25 @@ const columns: FooterColumn[] = [
         items: [
             { name: 'Nosotros', href: '/nosotros' },
             { name: 'Solicitar asesoría', href: '/contacto' },
-            { name: 'ventasecollifen@gmail.com', href: 'mailto:ventasecollifen@gmail.com' },
+            { name: 'marca@ecollifen.cl', href: 'mailto:marca@ecollifen.cl' },
         ],
     },
 ];
 ---
 
 <footer class="bg-primary text-primary-contrast">
-    <div class="mx-auto max-w-6xl px-6 py-10 sm:py-14">
-        {/* En móvil las tres listas van una debajo de otra y centradas, así que
-            necesitan una línea que las separe: sin ella se leen como un solo
-            bloque largo de enlaces. Desde sm son columnas y la separación la da
-            la propia grilla, por eso el borde se apaga. */}
-        <div class="grid grid-cols-1 gap-7 sm:grid-cols-3 sm:gap-10 [&>*+*]:border-t [&>*+*]:border-cream-50/10 [&>*+*]:pt-7 sm:[&>*+*]:border-0 sm:[&>*+*]:pt-0">
+    <div class="mx-auto max-w-6xl px-6 py-14">
+        <div class="grid grid-cols-1 gap-10 sm:grid-cols-3">
             {columns.map( (column) =>
                 <FooterBox title={column.title} items={column.items} />
             )}
         </div>
 
-        <div class="mt-9 flex flex-col items-center gap-2 border-t border-cream-50/10 pt-6 text-center sm:mt-12 sm:flex-row sm:justify-center sm:gap-2.5">
+        <div class="mt-12 flex flex-col gap-3 border-t border-cream-50/10 pt-6 sm:flex-row sm:items-center sm:justify-center">
             <p class="text-xs text-cream-200/60">
-                &copy; { new Date().getFullYear() } Ecollifén SpA · Todos los derechos reservados. Página creada por NeuviaPro
+                &copy; { new Date().getFullYear() } Ecollifén SpA · Todos los derechos reservados.
             </p>
-            <span class="hidden text-cream-200/30 sm:inline" aria-hidden="true">·</span>
-            <p class="font-display text-sm text-green-300 italic">
+            <p class="font-display text-sm italic text-green-300">
                 Soluciones que echan raíces.
             </p>
         </div>

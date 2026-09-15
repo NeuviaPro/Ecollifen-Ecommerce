@@ -86,9 +86,6 @@ export interface WooProduct {
     categories: { id: number, name: string, slug: string }[];
     // Datos para la ficha técnica. Hoy los productos no traen atributos
     // cargados en Woo, por eso son opcionales: la tabla se muestra solo si hay.
-    // Etiquetas de producto: hoy ningún producto tiene, pero el índice del
-    // buscador ya las usa — en cuanto se carguen en Woo, mejora sin tocar código.
-    tags?: { id: number, name: string, slug: string }[];
     attributes?: { name: string, options: string[], visible: boolean }[];
     weight?: string;
     dimensions?: { length: string, width: string, height: string };
@@ -155,18 +152,6 @@ export async function getAllWooProducts(category?: number): Promise<WooProduct[]
     return wooGetAll<WooProduct>("/wc/v3/products", params, "los productos");
 }
 
-// Igual que getAllWooProducts() sin filtro, pero memoizado. Desde que el
-// header y el footer calculan cuántos productos tiene cada área (contando la
-// rama completa, no solo lo asignado al área), el catálogo hace falta en cada
-// una de las ~120 páginas del build: sin cachear serían ~120 recorridos
-// paginados contra un WordPress compartido.
-let catalogoCache: Promise<WooProduct[]> | null = null;
-
-export function getCatalogoCompleto(): Promise<WooProduct[]> {
-    if (!catalogoCache) catalogoCache = getAllWooProducts();
-    return catalogoCache;
-}
-
 // Productos para el carrusel de la home. Manda lo que el cliente marque como
 // "Destacado" en WooCommerce; si no alcanza para llenar el carrusel, se
 // completa con productos en stock, que son los que se pueden comprar hoy.
@@ -189,27 +174,9 @@ export async function getDestacados(limite = 12): Promise<WooProduct[]> {
     return [...destacados, ...relleno].slice(0, limite);
 }
 
-// Todas las categorías, incluidas las que aún no tienen productos (Woo, por
-// defecto, las esconde). Hace falta para /tienda/[categoria]: si una
-// categoría existe pero está vacía (ej. "Repuestos", "Raíz Viva"), su página
-// debe generarse igual — con el mensaje "aún no hay productos" — en vez de
-// no generarse y devolver 404, que fue justo el bug que encontramos el
-// 2026-09-03: los enlaces a categorías nuevas y vacías daban 404 porque
-// getStaticPaths solo miraba categorías con productos.
-//
-// Era la única versión que quedaba: la variante con hide_empty=true se eliminó
-// porque escondía las áreas raíz del catálogo reestructurado (2026-09-11), que
-// tienen sus productos en las subcategorías y figuran con count=0.
-let categoriasCache: Promise<WooCategory[]> | null = null;
+export async function getWooCategories(): Promise<WooCategory[]> {
+    const params = wooAuth();
+    params.set("hide_empty", "true");
 
-export function getAllWooCategories(): Promise<WooCategory[]> {
-    // Memoizado: el build instancia el header en ~120 páginas y cada una
-    // llamaría a esto si no se cachea — una sola llamada real por build.
-    if (!categoriasCache) {
-        const params = wooAuth();
-        params.set("hide_empty", "false");
-        categoriasCache = wooGetAll<WooCategory>("/wc/v3/products/categories", params, "las categorías");
-    }
-
-    return categoriasCache;
+    return wooGetAll<WooCategory>("/wc/v3/products/categories", params, "las categorías");
 }

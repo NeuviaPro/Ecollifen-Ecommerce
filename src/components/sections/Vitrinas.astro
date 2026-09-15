@@ -3,9 +3,8 @@
 // enlace y el contador salen de la API, así que no vuelven a desincronizarse.
 // El copy sí lo controlamos aquí, porque los nombres en Woo vienen en
 // mayúsculas y sin tildes ("HERRAMIENTAS A BATERIA").
-import { getAllWooCategories, getCatalogoCompleto } from '@/lib/api';
+import { getWooCategories } from '@/lib/api';
 import type { WooCategory } from '@/lib/api';
-import { conteosDeRama } from '@/lib/categorias';
 import { Image } from 'astro:assets';
 import type { ImageMetadata } from 'astro';
 
@@ -42,14 +41,8 @@ const vitrinas: Vitrina[] = [
 ];
 
 let categorias: WooCategory[] = [];
-let conteos = new Map<number, number>();
 try {
-    const [cats, productos] = await Promise.all([
-        getAllWooCategories(),
-        getCatalogoCompleto(),
-    ]);
-    categorias = cats;
-    conteos = conteosDeRama(cats, productos);
+    categorias = await getWooCategories();
 } catch (error) {
     console.error('[vitrinas] No se pudieron cargar las categorías:', error);
 }
@@ -63,15 +56,10 @@ for (const vitrina of vitrinas) {
     const categoria = categorias.find((c) => c.slug === vitrina.slug);
     if (!categoria) continue;
 
-    // Se cuenta la rama completa: "Jardinería" es un área cuyos productos
-    // cuelgan de sus subcategorías, y el `count` de Woo no los ve.
-    const total = conteos.get(categoria.id) ?? categoria.count;
-    if (total === 0) continue;   // sin productos, la tarjeta no lleva a nada
-
     const clave = Object.keys(fotos).find((k) => k.includes(`/vitrinas/${vitrina.slug}.`));
     tarjetas.push({
         ...vitrina,
-        count: total,
+        count: categoria.count,
         foto: clave ? fotos[clave]!.default : undefined,
     });
 }
@@ -79,26 +67,23 @@ for (const vitrina of vitrinas) {
 
 {tarjetas.length > 0 && (
     <section class="mx-auto max-w-6xl px-6 py-14">
-        <div class="mb-6 flex items-end justify-between gap-4" data-anim>
+        <div class="mb-6 flex items-end justify-between gap-4">
             <div>
                 <p class="font-mono text-[11px] tracking-[0.16em] text-isotipo">ENTRA AL CATÁLOGO</p>
                 <h2 class="mt-1.5 font-display text-3xl font-semibold text-primary">
                     La tienda en 3 vitrinas
                 </h2>
             </div>
-            <a href="/tienda" class="group text-sm font-medium whitespace-nowrap text-isotipo transition-colors hover:text-primary">
-                Ver todo el catálogo
-                <span class="inline-block transition-transform duration-300 group-hover:translate-x-1">→</span>
+            <a href="/tienda" class="text-sm font-medium whitespace-nowrap text-isotipo hover:text-primary">
+                Ver todo el catálogo →
             </a>
         </div>
 
-        {/* Un solo atributo en la grilla y las 3 tarjetas entran en cascada:
-            ya no hace falta un --retraso calculado tarjeta por tarjeta. */}
-        <div class="grid grid-cols-1 gap-5 sm:grid-cols-3" data-anim-stagger>
+        <div class="grid grid-cols-1 gap-5 sm:grid-cols-3">
             {tarjetas.map((tarjeta) => (
                 <a
                     href={`/tienda/${tarjeta.slug}`}
-                    class="group relative flex h-65 items-end overflow-hidden rounded-2xl bg-[repeating-linear-gradient(135deg,#d9e2d3_0_14px,#e3ebdd_14px_28px)] transition-transform duration-300 ease-out hover:-translate-y-1.5"
+                    class="group relative flex h-65 items-end overflow-hidden rounded-2xl bg-[repeating-linear-gradient(135deg,#d9e2d3_0_14px,#e3ebdd_14px_28px)]"
                 >
                     {tarjeta.foto && (
                         <Image
@@ -109,11 +94,6 @@ for (const vitrina of vitrinas) {
                             class="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                         />
                     )}
-
-                    {/* Velo sólido aparte del degradado: un degradado no se puede
-                        transicionar, pero un color plano sí. Al pasar el mouse la
-                        tarjeta se tiñe un poco más de verde. */}
-                    <div class="absolute inset-0 bg-green-950/0 transition-colors duration-300 group-hover:bg-green-950/25"></div>
 
                     <div class="relative w-full bg-linear-to-t from-green-900/95 via-green-900/55 to-transparent p-5">
                         <p class="font-mono text-xs text-green-200">{tarjeta.count} productos</p>

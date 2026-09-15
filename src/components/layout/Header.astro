@@ -4,33 +4,11 @@ import MainNav from "./MainNav.astro";
 import Logo from '@/assets/ecollifenLogo.png';
 import { navigation } from '@/lib/navigation';
 import CartBadge from '@/components/cart/CartBadge';
-import Buscador from '@/components/search/Buscador.astro';
 import { asesoriaHref } from '@/lib/contacto';
-import { getAllWooCategories, getCatalogoCompleto } from '@/lib/api';
-import { areasDeTienda, conteosDeRama } from '@/lib/categorias';
-import type { Area } from '@/lib/categorias';
 
 // Nota: el inicio de sesión de clientes queda FUERA de este primer alcance,
 // por eso el header no lo enlaza. La cuenta nativa de WooCommerce existe en
 // /wp/mi-cuenta si más adelante se decide exponerla.
-
-// Las áreas del dropdown de Tienda son las categorías RAÍZ de WooCommerce: el
-// nombre y el slug salen de ahí, así que renombrar o crear un área en WP se
-// refleja solo en el próximo build (antes eran una lista escrita a mano y se
-// desincronizaron: "agricola" pasó a ser "huertos-y-agricolas" y el enlace
-// quedó apuntando a una página inexistente).
-// El Header se renderiza en TODAS las páginas (~120 en el build); las dos
-// llamadas están memoizadas, así que en la práctica son una sola petición real.
-let areas: Area[] = [];
-try {
-    const [categorias, productos] = await Promise.all([
-        getAllWooCategories(),
-        getCatalogoCompleto(),
-    ]);
-    areas = areasDeTienda(categorias, conteosDeRama(categorias, productos));
-} catch (error) {
-    console.error('[header] No se pudieron cargar las categorías:', error);
-}
 ---
 
 <header class="w-full">
@@ -47,8 +25,8 @@ try {
         </div>
     </div>
 
-    {/* Nav principal: Verde Bosque (rol Marca/Header del manual) */}
-    <div class="bg-primary text-primary-contrast">
+    {/* Nav principal: fondo blanco con texto Tierra (#7a3b1e) */}
+    <div class="border-b border-earth-500/15 bg-white text-substrate shadow-sm">
         <div class="mx-auto flex max-w-6xl items-center gap-6 px-6 py-3">
             <a href="/" class="flex shrink-0 items-center">
                 <Picture
@@ -62,14 +40,24 @@ try {
                 />
             </a>
 
-            <MainNav class="hidden lg:flex justify-around" areas={areas} />
+            <MainNav class="hidden lg:flex justify-around" />
 
             <div class="ml-auto flex items-center gap-1 sm:gap-2">
-                {/* Buscador de escritorio; en móvil va dentro del drawer */}
-                <Buscador class="hidden md:block" />
+                {/* Buscador (solo escritorio) */}
+                <label class="hidden items-center gap-2 rounded-lg border border-earth-500/20 bg-earth-50 px-3 py-1.5 md:flex">
+                    <svg class="size-4 text-substrate/60" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+                        <circle cx="11" cy="11" r="7"></circle>
+                        <path d="m20 20-3-3"></path>
+                    </svg>
+                    <input
+                        type="search"
+                        placeholder="Buscar productos…"
+                        class="w-40 bg-transparent text-sm text-substrate placeholder:text-substrate/60 focus:outline-none"
+                    />
+                </label>
 
                 {/* Carrito — abre el drawer */}
-                <button type="button" data-cart-toggle aria-label="Abrir carrito" class="relative flex items-center gap-2 rounded-lg p-2.5 transition-colors hover:bg-white/10">
+                <button type="button" data-cart-toggle aria-label="Abrir carrito" class="relative flex items-center gap-2 rounded-lg p-2.5 transition-colors hover:bg-earth-50">
                     <svg class="size-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                         <circle cx="9" cy="20" r="1.5"></circle>
                         <circle cx="18" cy="20" r="1.5"></circle>
@@ -86,7 +74,7 @@ try {
                     aria-label="Abrir menú"
                     aria-controls="mobile-menu"
                     aria-expanded="false"
-                    class="rounded-lg p-2.5 transition-colors hover:bg-white/10 lg:hidden"
+                    class="rounded-lg p-2.5 transition-colors hover:bg-earth-50 lg:hidden"
                 >
                     <svg class="size-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
                         <path d="M4 6h16M4 12h16M4 18h16"></path>
@@ -108,15 +96,15 @@ try {
         {/* Panel deslizante */}
         <aside
             data-menu-panel
-            class="fixed top-0 right-0 z-50 flex h-dvh w-80 max-w-[85vw] translate-x-full flex-col bg-primary text-primary-contrast shadow-xl transition-transform duration-200"
+            class="fixed top-0 right-0 z-50 flex h-dvh w-80 max-w-[85vw] translate-x-full flex-col bg-white text-substrate shadow-xl transition-transform duration-200"
         >
-            <div class="flex items-center justify-between border-b border-white/10 px-5 py-4">
+            <div class="flex items-center justify-between border-b border-earth-500/15 px-5 py-4">
                 <span class="font-display text-lg font-semibold">Menú</span>
                 <button
                     type="button"
                     data-menu-close
                     aria-label="Cerrar menú"
-                    class="rounded-lg p-2 transition-colors hover:bg-white/10"
+                    class="rounded-lg p-2 transition-colors hover:bg-earth-50"
                 >
                     <svg class="size-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
                         <path d="M6 6l12 12M18 6 6 18"></path>
@@ -124,55 +112,18 @@ try {
                 </button>
             </div>
 
-            {/* Buscador móvil: hasta ahora el teléfono no tenía forma de buscar */}
-            <div class="border-b border-white/10 p-4">
-                <Buscador variante="panel" />
-            </div>
-
             <nav class="flex flex-col p-2">
                 {navigation.map((item) => (
-                    item.name === 'Tienda' ? (
-                        <details class="group">
-                            {/* Sin <a> anidado a propósito: un link dentro de <summary> es
-                                ambiguo entre "navegar" y "desplegar" según el navegador.
-                                "Ver todo el catálogo" va como primer ítem de abajo. */}
-                            <summary class="flex cursor-pointer list-none items-center justify-between rounded-lg px-3 py-3 text-base font-medium transition-colors hover:bg-white/10 [&::-webkit-details-marker]:hidden">
-                                Tienda
-                                <svg class="size-4 shrink-0 transition-transform group-open:rotate-90" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                                    <path d="m9 6 6 6-6 6" />
-                                </svg>
-                            </summary>
-
-                            <div class="ml-3.5 flex flex-col gap-0.5 border-l border-white/15 pl-2.5">
-                                <a href="/tienda" class="rounded-lg px-2.5 py-2.5 text-sm font-semibold transition-colors hover:bg-white/10">
-                                    Ver todo el catálogo
-                                </a>
-                                {areas.length > 0 && (
-                                    <p class="px-2.5 pt-2 pb-1 font-mono text-[10px] tracking-wide text-green-200/70 uppercase">Por área</p>
-                                )}
-                                {areas.map((area) => (
-                                    <a
-                                        href={`/tienda/${area.slug}`}
-                                        class="flex items-center justify-between gap-2 rounded-lg px-2.5 py-2.5 text-sm transition-colors hover:bg-white/10"
-                                    >
-                                        {area.name}
-                                        <span class="font-mono text-[10px] text-green-200/60">{area.count}</span>
-                                    </a>
-                                ))}
-                            </div>
-                        </details>
-                    ) : (
-                        <a
-                            href={item.href}
-                            class="rounded-lg px-3 py-3 text-base font-medium transition-colors hover:bg-white/10"
-                        >{item.name}</a>
-                    )
+                    <a
+                        href={item.href}
+                        class="rounded-lg px-3 py-3 text-base font-medium transition-colors hover:bg-earth-50"
+                    >{item.name}</a>
                 ))}
             </nav>
 
-            <div class="mt-auto flex flex-col gap-1 border-t border-white/10 p-2 text-sm text-green-100">
-                <a href="/contacto" class="rounded-lg px-3 py-3 transition-colors hover:bg-white/10">Cotiza con asesoría</a>
-                <a href={asesoriaHref()} class="rounded-lg px-3 py-3 transition-colors hover:bg-white/10">Escribir por WhatsApp</a>
+            <div class="mt-auto flex flex-col gap-1 border-t border-earth-500/15 p-2 text-sm text-substrate/80">
+                <a href="/contacto" class="rounded-lg px-3 py-3 transition-colors hover:bg-earth-50">Cotiza con asesoría</a>
+                <a href={asesoriaHref()} class="rounded-lg px-3 py-3 transition-colors hover:bg-earth-50">Escribir por WhatsApp</a>
             </div>
         </aside>
     </div>

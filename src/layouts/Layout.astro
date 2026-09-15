@@ -5,33 +5,11 @@ import HeaderAstroComponent from '@/components/layout/Header.astro';
 import Footer from '@/components/layout/Footer.astro'
 import CartDrawer from '@/components/cart/CartDrawer';
 import PreciosEnVivo from '@/components/product/PreciosEnVivo.astro';
-import VistaRapida from '@/components/product/VistaRapida.astro';
 
 interface Props {
-	title: string;
-	/** Para Open Graph. Sin esto, un link compartido por WhatsApp no muestra
-	 * nada específico de la página — mismo título/logo para cualquier URL. */
-	description?: string;
-	/** URL absoluta de la imagen de la tarjeta de previsualización. */
-	image?: string;
-	/** "product" en fichas de producto; "website" para el resto (default). */
-	type?: 'website' | 'product';
+	title: string
 }
-
-const DESCRIPCION_DEFECTO = 'Maquinaria, herramientas, repuestos y sustratos para agricultura, jardinería e invernaderos en el sur de Chile. Asesoría técnica antes de comprar.';
-const IMAGEN_DEFECTO = '/og-default.jpg';
-
-const {
-	title,
-	description = DESCRIPCION_DEFECTO,
-	image = IMAGEN_DEFECTO,
-	type = 'website',
-} = Astro.props;
-
-// Open Graph exige URLs absolutas, no relativas.
-const urlAbsoluta = new URL(Astro.url.pathname, Astro.site);
-const imagenAbsoluta = new URL(image, Astro.site);
-const tituloCompleto = `Ecollifén | ${title}`;
+const { title } = Astro.props;
 ---
 
 <!doctype html>
@@ -39,58 +17,15 @@ const tituloCompleto = `Ecollifén | ${title}`;
 	<head>
 		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width" />
-		{/* Favicon. Apunta a archivos de public/, que es lo único que se sirve
-			tal cual: antes esto era href="/src/assets/ecollifenLogo.png" y daba
-			404 en producción (Astro no publica src/, solo lo procesa al
-			importarlo), además de declarar type="image/svg+xml" sobre un PNG.
-			Los iconos son un RECORTE del isotipo del logo, sin el wordmark
-			"ECOLLIFÉN", que a 32px es una mancha ilegible. Se regeneran con
-			scripts/generar-favicon.mjs si cambia el logo. */}
-		<link rel="icon" href="/favicon.ico" sizes="32x32" />
-		<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
-		<link rel="icon" type="image/png" sizes="192x192" href="/favicon-192.png" />
-		<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+		<link rel="icon" href="/favicon.ico" />
 		<meta name="generator" content={Astro.generator} />
-		<title>{tituloCompleto}</title>
-		<meta name="description" content={description} />
-		<link rel="canonical" href={urlAbsoluta} />
-
-		{/* Open Graph — lo que WhatsApp, Facebook e Instagram leen para armar
-			la tarjeta de previsualización de un link compartido. Sin esto,
-			cualquier link se ve igual (o vacío), sin foto ni nombre del
-			producto: el diferencial de "cerrar por WhatsApp" pierde fuerza. */}
-		<meta property="og:type" content={type} />
-		<meta property="og:site_name" content="Ecollifén" />
-		<meta property="og:title" content={tituloCompleto} />
-		<meta property="og:description" content={description} />
-		<meta property="og:image" content={imagenAbsoluta} />
-		<meta property="og:url" content={urlAbsoluta} />
-		<meta property="og:locale" content="es_CL" />
-
-		<meta name="twitter:card" content="summary_large_image" />
-		<meta name="twitter:title" content={tituloCompleto} />
-		<meta name="twitter:description" content={description} />
-		<meta name="twitter:image" content={imagenAbsoluta} />
+		<title>Ecollifen | { title }</title>
 
 		<link rel="preconnect" href="https://fonts.googleapis.com">
 		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 		<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,100..900;1,9..144,100..900&family=IBM+Plex+Mono:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;1,100;1,200;1,300;1,400;1,500;1,600;1,700&family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap" rel="stylesheet">
 		
-		{/* Marca el documento como "puede animar" ANTES del primer pintado, por
-			eso va en línea y no en un <script> normal (que es diferido). Sin esta
-			clase, las secciones con data-anim se ven normales: el contenido
-			nunca depende del JS para ser visible.
-
-			data-astro-rerun es obligatorio: al navegar, el ClientRouter borra
-			todos los atributos de <html> y no re-ejecuta los scripts ya
-			ejecutados; sin este atributo la clase se perdería tras la primera
-			navegación y las animaciones dejarían de correr. */}
-		<script is:inline data-astro-rerun>
-			if (!matchMedia('(prefers-reduced-motion: reduce)').matches) {
-				document.documentElement.classList.add('anim');
-			}
-		</script>
-
 		<ClientRouter />
 	</head>
 	<body>
@@ -99,21 +34,8 @@ const tituloCompleto = `Ecollifén | ${title}`;
 		<Footer />
 		<CartDrawer client:load transition:persist />
 		<PreciosEnVivo />
-		{/* El modal va aquí, no dentro del catálogo: ProductCard dibuja su
-			botón de vista rápida en cualquier página, así que el modal tiene
-			que existir en todas. Está oculto hasta que se abre. */}
-		<VistaRapida />
 	</body>
 </html>
-
-<script>
-	// Sistema de animación del sitio. Toda la configuración (presets, duración,
-	// curva, punto de disparo) vive en @/lib/animaciones: aquí solo se enciende.
-	// Los componentes nunca importan GSAP, solo marcan HTML con data-anim.
-	import { iniciarAnimaciones } from '@/lib/animaciones';
-
-	iniciarAnimaciones();
-</script>
 
 <script>
 	// Handler global de "Agregar al carrito". Delegación en document: un solo
@@ -135,19 +57,11 @@ const tituloCompleto = `Ecollifén | ${title}`;
 		const id = Number(btn.dataset.addToCart);
 		if (!id) return;
 
-		// Si el botón vive junto a un selector de cantidad (ficha de producto),
-		// se respeta lo que eligió el cliente. En el catálogo no hay selector y
-		// cae en 1, como siempre.
-		const campo = btn.closest('[data-compra]')?.querySelector('[data-cantidad]');
-		const cantidad = campo instanceof HTMLInputElement
-			? Math.min(99, Math.max(1, Number(campo.value) || 1))
-			: 1;
-
 		const original = btn.textContent;
 		btn.setAttribute('disabled', '');
 		btn.textContent = 'Agregando…';
 		try {
-			await addToCart(id, cantidad);
+			await addToCart(id, 1);
 			cartOpen.set(true);   // abrirá el drawer (paso 5)
 		} catch (error) {
 			console.error('[cart] No se pudo agregar:', error);

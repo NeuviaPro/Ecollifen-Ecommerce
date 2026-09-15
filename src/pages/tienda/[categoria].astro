@@ -1,38 +1,25 @@
 ---
 import Layout from '@/layouts/Layout.astro';
 import Catalogo from '@/components/product/Catalogo.astro';
-import { getAllWooCategories, getCatalogoCompleto } from '@/lib/api';
+import { getWooCategories, getAllWooProducts } from '@/lib/api';
 import type { WooCategory, WooProduct } from '@/lib/api';
-import { conteosDeRama, productosDeRama } from '@/lib/categorias';
-import { ordenarPorDisponibilidad } from '@/lib/productos';
 
-// Una página estática por cada categoría REAL de WooCommerce, INCLUIDAS las
-// que aún no tienen productos (getAllWooCategories, no getWooCategories: esa
-// última esconde las vacías, y este archivo daba 404 en categorías nuevas
-// como "Repuestos" o "Raíz Viva" hasta que se detectó el 2026-09-03).
-// Al crear una categoría nueva en WP, su página se genera sola.
+// Una página estática por cada categoría REAL de WooCommerce. Al crear una
+// categoría nueva en WP (ej. "Sustrato y Suelos"), su página se genera sola.
 export async function getStaticPaths() {
     // Una sola llamada para todo el catálogo y luego se filtra en memoria: antes
     // era una petición por categoría (23 en total) contra un WordPress lento.
     const [categorias, todos] = await Promise.all([
-        getAllWooCategories(),
-        getCatalogoCompleto(),
+        getWooCategories(),
+        getAllWooProducts(),
     ]);
-
-    const conteos = conteosDeRama(categorias, todos);
 
     return categorias.map((category) => ({
         params: { categoria: category.slug },
         props: {
             category,
             categorias,
-            conteos,
-            // La rama completa, no solo lo asignado a esta categoría: entrar a
-            // un área ("Maquinarias") tiene que mostrar lo que cuelga de sus
-            // subcategorías. Así el cliente asigna cada producto SOLO a la
-            // categoría más específica y no tiene que marcar también el área.
-            // Los agotados van al final, pero siguen visibles (@/lib/productos).
-            products: ordenarPorDisponibilidad(productosDeRama(categorias, todos, category.id)),
+            products: todos.filter((p) => p.categories?.some((c) => c.id === category.id)),
             totalCatalogo: todos.length,
         },
     }));
@@ -41,20 +28,11 @@ export async function getStaticPaths() {
 interface Props {
     category: WooCategory;
     categorias: WooCategory[];
-    conteos: Map<number, number>;
     products: WooProduct[];
     totalCatalogo: number;
 }
 
-const { category, categorias, conteos, products, totalCatalogo } = Astro.props as Props;
-
-// La descripción de categoría en Woo puede traer HTML del editor; se limpia
-// antes de usarla como bajada de texto plano bajo el título.
-const descripcion = (category.description || '')
-    .replace(/<[^>]*>/g, ' ')
-    .replace(/&[a-z]+;|&#\d+;/gi, ' ')
-    .replace(/\s+/g, ' ')
-    .trim() || undefined;
+const { category, categorias, products, totalCatalogo } = Astro.props as Props;
 ---
 
 <Layout title={category.name}>
@@ -62,10 +40,8 @@ const descripcion = (category.description || '')
         title={category.name}
         products={products}
         categorias={categorias}
-        conteos={conteos}
         currentSlug={category.slug}
         badge={category.name}
         totalCatalogo={totalCatalogo}
-        description={descripcion}
     />
 </Layout>
