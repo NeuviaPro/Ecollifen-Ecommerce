@@ -10,14 +10,14 @@
         "build": "cross-env NODE_OPTIONS=--use-system-ca astro build",
         "preview": "cross-env NODE_OPTIONS=--use-system-ca astro preview",
         "astro": "astro",
-        "deploy": "bash deploy.sh"
+        "deploy": "npm run build && node --env-file=.env scripts/deploy.mjs",
+        "deploy:solo": "node --env-file=.env scripts/deploy.mjs"
     },
     "dependencies": {
         "@astrojs/preact": "^6.0.2",
         "@nanostores/preact": "^1.1.0",
         "@tailwindcss/vite": "^4.3.2",
         "astro": "^7.0.6",
-        "gsap": "^3.15.0",
         "nanostores": "^1.4.2",
         "preact": "^10.29.8",
         "sharp": "^0.35.3",
@@ -26,6 +26,7 @@
     },
     "devDependencies": {
         "@astrojs/check": "^0.9.9",
+        "basic-ftp": "^6.2.0",
         "cross-env": "^10.1.0",
         "typescript": "^6.0.3"
     }
