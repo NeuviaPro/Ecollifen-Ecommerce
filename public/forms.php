@@ -85,10 +85,22 @@ function cargarEnv(string $ruta): array
     return $valores;
 }
 
+// OJO con la ruta: en el proyecto este archivo esta en public/, asi que
+// dirname(__DIR__) es la raiz y encuentra el .env. En PRODUCCION queda en
+// public_html/, o sea que mira en /home/<cuenta>/.env — fuera del docroot, que
+// es lo correcto por seguridad, pero ahi normalmente NO hay ningun .env: el
+// despliegue solo sube dist/. Es decir, en el servidor mandan los valores por
+// defecto de mas abajo.
+//
+// Hoy eso no se nota porque el .env del proyecto trae exactamente el mismo
+// correo que el fallback. Si algun dia hay que cambiar el destinatario, hay
+// dos caminos validos: editar el valor por defecto de aqui abajo, o dejar un
+// .env en /home/<cuenta>/ (fuera del docroot). Cambiar solo el .env del
+// proyecto NO tiene ningun efecto en produccion.
 $env = cargarEnv(dirname(__DIR__) . '/.env');
 
 // Mismo fallback que usa src/pages/contacto.astro para PUBLIC_CONTACTO_EMAIL.
-$CORREO_DESTINO = $env['PUBLIC_CONTACTO_EMAIL'] ?? 'ventasecollifen@gmail.com';
+$CORREO_DESTINO = $env['PUBLIC_CONTACTO_EMAIL'] ?? (getenv('PUBLIC_CONTACTO_EMAIL') ?: 'ventasecollifen@gmail.com');
 
 // Dominio propio para el remitente técnico del correo (el "From" real de un
 // mail() en PHP debe pertenecer al dominio del servidor o muchos proveedores
@@ -120,11 +132,19 @@ $datos = leerDatos();
 /** Devuelve el campo ya limpio: sin espacios sobrantes ni saltos de línea
  * (los saltos de línea en un valor son el vector clásico de inyección de
  * cabeceras en mail() — hay que quitarlos siempre, no solo "por si acaso"). */
-function campo(array $datos, string $clave): string
+function campo(array $datos, string $clave, int $maximo = 200): string
 {
     $valor = (string) ($datos[$clave] ?? '');
     $valor = str_replace(["\r", "\n"], ' ', $valor);
-    return trim($valor);
+    $valor = trim($valor);
+    // Sin este tope, un POST con varios MB en un campo se procesaba entero y
+    // se intentaba mandar por correo. Se recorta en silencio en vez de
+    // rechazar, para no castigar a quien de verdad escribio de mas; mb_* para
+    // no partir un caracter UTF-8 por la mitad.
+    if ($maximo > 0 && mb_strlen($valor, 'UTF-8') > $maximo) {
+        $valor = mb_substr($valor, 0, $maximo, 'UTF-8');
+    }
+    return $valor;
 }
 
 // Honeypot anti-spam: campo oculto para personas, invisible mediante CSS.
@@ -135,11 +155,60 @@ if (campo($datos, 'sitio_web') !== '') {
     responder(200, ['ok' => true]);
 }
 
+// --- Freno anti-inundacion ------------------------------------------------
+
+/**
+ * Limita los envios por IP dentro de una ventana de tiempo.
+ *
+ * El honeypot solo detiene a los bots ingenuos: sin esto, cualquiera podia
+ * hacer POST en bucle y llenar la casilla del cliente. No es un open relay
+ * (el destino es fijo), asi que el dano se limita a Ecollifen, pero es real.
+ *
+ * Se guarda en el directorio temporal del sistema y con la IP en hash: no
+ * hace falta almacenar direcciones en claro para contar. Si el temporal no
+ * fuera escribible, la funcion deja pasar — es un freno anti-abuso, no un
+ * control de acceso, y no debe tumbar el formulario a gente legitima.
+ */
+function dentroDelLimite(int $maximo, int $ventanaSegundos): bool
+{
+    $ip = (string) ($_SERVER['REMOTE_ADDR'] ?? '');
+    if ($ip === '') {
+        return true;
+    }
+
+    $archivo = sys_get_temp_dir() . '/ecollifen-form-' . sha1($ip) . '.txt';
+    $ahora = time();
+    $marcas = [];
+
+    if (is_readable($archivo)) {
+        foreach (explode(',', (string) file_get_contents($archivo)) as $marca) {
+            $t = (int) trim($marca);
+            if ($t > 0 && ($ahora - $t) < $ventanaSegundos) {
+                $marcas[] = $t;
+            }
+        }
+    }
+
+    if (count($marcas) >= $maximo) {
+        return false;
+    }
+
+    $marcas[] = $ahora;
+    @file_put_contents($archivo, implode(',', $marcas), LOCK_EX);
+    return true;
+}
+
+// 5 envios por hora y por IP: una persona manda uno o dos, y deja margen a
+// oficinas o casas que salen tras la misma IP.
+if (!dentroDelLimite(5, 3600)) {
+    responder(429, ['ok' => false, 'error' => 'Recibimos varias solicitudes desde tu conexion. Espera unos minutos y vuelve a intentarlo.']);
+}
+
 $motivo = campo($datos, 'motivo') === 'servicio' ? 'servicio' : 'asesoria';
-$nombre = campo($datos, 'nombre');
-$telefono = campo($datos, 'telefono');
-$email = campo($datos, 'email');
-$comuna = campo($datos, 'comuna');
+$nombre = campo($datos, 'nombre', 120);
+$telefono = campo($datos, 'telefono', 40);
+$email = campo($datos, 'email', 160);
+$comuna = campo($datos, 'comuna', 120);
 
 // Validación mínima: la misma que ya hacía el script del frontend.
 if ($nombre === '' || $telefono === '') {
@@ -155,9 +224,9 @@ if ($email !== '' && !filter_var($email, FILTER_VALIDATE_EMAIL)) {
 $lineas = [];
 
 if ($motivo === 'servicio') {
-    $equipo = campo($datos, 'equipo');
-    $modelo = campo($datos, 'modelo');
-    $detalle = campo($datos, 'detalle_servicio');
+    $equipo = campo($datos, 'equipo', 120);
+    $modelo = campo($datos, 'modelo', 160);
+    $detalle = campo($datos, 'detalle_servicio', 2000);
 
     $asunto = 'Nueva solicitud de servicio técnico — ' . $nombre;
     $lineas[] = 'Nueva solicitud de SERVICIO TÉCNICO desde ecollifen.cl';
@@ -174,8 +243,8 @@ if ($motivo === 'servicio') {
         $lineas[] = $detalle;
     }
 } else {
-    $segmento = campo($datos, 'segmento');
-    $detalle = campo($datos, 'detalle_asesoria');
+    $segmento = campo($datos, 'segmento', 120);
+    $detalle = campo($datos, 'detalle_asesoria', 2000);
 
     $asunto = 'Nueva solicitud de asesoría — ' . $nombre;
     $lineas[] = 'Nueva solicitud de ASESORÍA Y COTIZACIÓN desde ecollifen.cl';
@@ -204,7 +273,19 @@ if ($email !== '') {
     $cabeceras[] = 'Reply-To: ' . $email;
 }
 
-$enviado = @mail($CORREO_DESTINO, '=?UTF-8?B?' . base64_encode($asunto) . '?=', $cuerpo, implode("\r\n", $cabeceras));
+// El 5o parametro fija el Return-Path (envelope sender). Importa porque el
+// SPF del dominio se evalua sobre el envelope, NO sobre la cabecera From:;
+// sin esto el correo sale con el remitente del sistema (ecollifen@sXXXX),
+// no alinea con ecollifen.cl y Gmail puede mandarlo a spam.
+$enviado = @mail(
+    $CORREO_DESTINO,
+    '=?UTF-8?B?' . base64_encode($asunto) . '?=',
+    $cuerpo,
+    implode("
+
+", $cabeceras),
+    '-f' . $FROM
+);
 
 if (!$enviado) {
     responder(500, ['ok' => false, 'error' => 'No pudimos enviar el correo. Intenta de nuevo o escríbenos directo a ' . $CORREO_DESTINO . '.']);
