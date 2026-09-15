@@ -147,11 +147,16 @@ const vitrinas = currentSlug ? [] : AREAS_VITRINA
     solo color. Nunca sustituye el fondo base: es una capa encima. */}
 <div class="tienda-fondo">
     <div class="mx-auto max-w-6xl px-6 pt-8 pb-14">
-        <div class="flex items-center justify-between gap-4">
+        {/* flex-wrap + min-w-0: en pantallas angostas la fila pedia mas ancho
+            del disponible (el <select> reserva el de su opcion mas larga,
+            "Precio: menor a mayor") y, sin wrap y con el min-width:auto que
+            traen los hijos flex, no podia encoger ni bajar -> scroll horizontal
+            en toda la pagina. */}
+        <div class="flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
             <div class="flex items-baseline gap-3">
                 <span class="font-mono text-xs text-muted" data-count>{products.length} {products.length === 1 ? 'producto' : 'productos'}</span>
             </div>
-            <div class="flex items-center gap-3">
+            <div class="ml-auto flex min-w-0 items-center gap-2 sm:gap-3">
                 <button
                     type="button"
                     data-filtros-open
@@ -160,9 +165,13 @@ const vitrinas = currentSlug ? [] : AREAS_VITRINA
                     <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M3 5h18M6 12h12M10 19h4"></path></svg>
                     Filtrar
                 </button>
-                <label class="flex items-center gap-2 text-sm text-muted">
-                    <span class="font-mono text-xs tracking-wide">ORDENAR</span>
-                    <select data-sort class="rounded-lg border border-border bg-surface px-3 py-2 text-foreground focus:border-ring focus:outline-none">
+                <label class="flex min-w-0 items-center gap-2 text-sm text-muted">
+                    <span class="hidden font-mono text-xs tracking-wide sm:inline">ORDENAR</span>
+                    <select
+                        data-sort
+                        aria-label="Ordenar productos"
+                        class="min-w-0 max-w-full rounded-lg border border-border bg-surface px-3 py-2 text-foreground focus:border-ring focus:outline-none"
+                    >
                         <option value="relevancia">Relevancia</option>
                         <option value="precio-asc">Precio: menor a mayor</option>
                         <option value="precio-desc">Precio: mayor a menor</option>
