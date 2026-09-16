@@ -4,8 +4,7 @@ import type { FooterLink } from "./FooterBox.astro";
 import { getAllWooCategories, getCatalogoCompleto } from "@/lib/api";
 import { areasDeTienda, conteosDeRama } from "@/lib/categorias";
 import { redesSociales } from "@/lib/contacto";
-import { Image } from "astro:assets";
-import mercadoPago from "@/assets/metodosPagos/mercadoPago.png";
+import MercadoPago from "@/assets/metodosPagos/mercadoPago.svg";
 
 type FooterColumn = {
     title: string,
@@ -115,12 +114,10 @@ const ICONOS: Record<string, string> = {
             <p class="font-mono text-[11px] tracking-[0.16em] text-green-300 uppercase">
                 Medios de pago
             </p>
-            <Image
-                src={mercadoPago}
-                alt="Mercado Pago"
-                widths={[180, 360]}
-                sizes="180px"
-                class="h-9 w-auto rounded-md bg-white/95 px-2.5 py-1.5"
+            <MercadoPago
+                role="img"
+                aria-label="Mercado Pago"
+                class="h-16 w-auto"
             />
         </div>
 
