@@ -17,7 +17,7 @@ export default function CartBadge() {
     if (cart.count <= 0) return null;
 
     return (
-        <span class="absolute top-1 left-6 flex h-4 min-w-4 items-center justify-center rounded-full bg-cta px-1 text-[10px] font-bold text-cta-contrast">
+        <span class="absolute top-1 left-6 flex h-4 min-w-4 items-center justify-center rounded-full bg-cta px-1 text-[10px] font-bold text-background">
             {cart.count}
         </span>
     );

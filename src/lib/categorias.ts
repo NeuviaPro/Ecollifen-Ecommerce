@@ -5,14 +5,7 @@
 // Agrícolas, Maquinarias, Herramientas, Repuestos), sus tipos de producto
 // debajo y, en dos casos, un tercer nivel (Generadores → Gasolina/Diesel,
 // Motores → Estacionario/Tractores).
-//
-// Eso rompió dos supuestos que el sitio tenía metidos a mano:
-//   1. Que un producto estaba asignado a la categoría que se está mirando. Hoy
-//      un área como "Maquinarias" tiene count=0 en Woo porque sus productos
-//      cuelgan de las hijas — su página salía vacía aunque la rama tenga 26.
-//   2. Que los slugs del menú y el footer eran fijos. "agricola" ya no existe:
-//      pasó a ser "huertos-y-agricolas".
-//
+
 // Todo lo que necesite navegar el árbol pasa por aquí, para que renombrar o
 // mover una categoría en WordPress no vuelva a exigir tocar el código.
 import type { WooCategory, WooProduct } from "@/lib/api";

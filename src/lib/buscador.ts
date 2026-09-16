@@ -1,7 +1,7 @@
 // Lógica de búsqueda del catálogo, compartida por el índice que se genera en
 // el build y por el buscador que corre en el navegador.
 //
-// El catálogo es chico (88 productos) y el sitio es estático, así que la
+// El catálogo es chico y el sitio es estático, así que la
 // búsqueda se hace en el cliente sobre un índice prearmado: es instantánea y no
 // depende de que WordPress responda (que tarda ~1 s por petición).
 
@@ -105,7 +105,7 @@ export function buscar(indice: ItemIndice[], consulta: string, limite?: number):
     return resultados.slice(0, limite ?? resultados.length).map((r) => r.item);
 }
 
-/** Formatea un precio de Woo (texto plano, sin decimales) en pesos. */
+/** Formatea un precio de Woo (texto plano, sin decimales) en pesos chilenos. */
 export function formatoPrecio(valor: string | number): string {
     return new Intl.NumberFormat('es-CL', {
         style: 'currency',

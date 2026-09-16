@@ -56,7 +56,7 @@ export default function CartDrawer() {
                 {cart.items.length === 0 ? (
                     <div class="flex flex-1 flex-col items-center justify-center gap-4 p-6 text-center">
                         <p class="text-muted">Tu carrito está vacío.</p>
-                        <a href="/tienda" onClick={close} class="rounded-lg bg-cta px-5 py-2.5 font-semibold text-cta-contrast transition-colors hover:bg-green-600">
+                        <a href="/tienda" onClick={close} class="rounded-lg bg-cta px-5 py-2.5 font-semibold text-amber-50 transition-colors hover:bg-green-600">
                             Ir a la tienda
                         </a>
                     </div>

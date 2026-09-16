@@ -23,34 +23,35 @@ import ProductCard from '@/components/product/ProductCard.astro';
 
 let productos: WooProduct[] = [];
 try {
-    productos = await getDestacados(12);
+    productos = await getDestacados(18);
 } catch (error) {
     console.error('[destacados] No se pudieron cargar los productos:', error);
 }
 ---
 
-<section class="mx-auto max-w-6xl px-6 py-14">
-    {/* Solo se revela el encabezado. Las tarjetas van dentro del carrusel y
+<section class="destacados-fondo relative isolate overflow-hidden py-16 md:py-20">
+    {/* Encabezado CENTRADO y sin "Ver todo el catálogo", a diferencia de
+        Vitrinas (alineado a la izquierda y con ese mismo enlace a la derecha).
+        Antes las dos secciones eran gemelas —mismo eyebrow, mismo tamaño de
+        título y el MISMO enlace— separadas por media pantalla: seguidas se
+        leían como una sola franja repetida.
+
+        Solo se revela el encabezado. Las tarjetas van dentro del carrusel y
         Swiper controla su `transform` fotograma a fotograma: animarlas por
         fuera pelearía con él y dejaría el carrusel descuadrado. */}
-    <div class="mb-6 flex items-end justify-between gap-4" data-anim>
-        <div>
-            <p class="font-mono text-[11px] tracking-[0.16em] text-isotipo">CON PRECIO Y STOCK A LA VISTA</p>
-            <h2 class="mt-1.5 font-display text-3xl font-semibold text-primary">
-                Lo más pedido esta temporada
-            </h2>
-        </div>
-        <a href="/tienda" class="group text-sm font-medium whitespace-nowrap text-isotipo transition-colors hover:text-primary">
-            Ver todo el catálogo
-            <span class="inline-block transition-transform duration-300 group-hover:translate-x-1">→</span>
-        </a>
+    <div class="mx-auto max-w-6xl px-6 text-center" data-anim>
+        <p class="font-mono text-[11px] tracking-[0.16em] text-green-300">CON PRECIO Y STOCK A LA VISTA</p>
+        <h2 class="mx-auto mt-2 max-w-[22ch] font-display text-3xl leading-tight font-semibold text-balance text-white md:text-4xl">
+            Lo más pedido esta temporada
+        </h2>
     </div>
 
     {productos.length === 0 ? (
-        <p class="rounded-lg border border-border bg-surface p-6 text-muted">
+        <p class="mx-auto mt-8 max-w-6xl rounded-lg border border-white/15 bg-white/5 px-6 py-6 text-green-100/80">
             No hay productos para mostrar. Revisa que WordPress esté respondiendo.
         </p>
     ) : (
+        <div class="destacados-cinta mx-auto mt-10 max-w-[2000px]">
         <div class="destacados-swiper swiper" data-destacados data-total={productos.length}>
             <div class="swiper-wrapper">
                 {productos.map((product) => (
@@ -60,16 +61,94 @@ try {
                 ))}
             </div>
         </div>
+        </div>
     )}
 </section>
 
 <style is:global>
+    /* 1. Fondo propio.
+       La home encadenaba TRES secciones sin fondo (Vitrinas, Destacados y
+       Producto Estrella): una franja de crema continua en la que el carrusel
+       no se distinguía de nada. Con un verde profundo la sección se lee como
+       un escaparate aparte y, de paso, las tarjetas claras por fin "flotan" y
+       se nota la sombra que ya traían.
+
+       Es green-950, MÁS oscuro que el green-900 del hero: si fuese el mismo
+       verde, parecería que la página repite la cabecera. Los dos focos
+       radiales evitan que quede como un rectángulo de color plano. */
+    .destacados-fondo {
+        background-color: var(--color-green-950);
+        background-image:
+            radial-gradient(46rem 30rem at 15% 0%, color-mix(in srgb, var(--color-green-700) 42%, transparent), transparent 62%),
+            radial-gradient(38rem 26rem at 88% 100%, color-mix(in srgb, var(--color-green-800) 46%, transparent), transparent 58%);
+        background-repeat: no-repeat;
+    }
+
+    /* 2. Los bordes DESENFOCAN en vez de recortar.
+       El primer intento usaba mask-image sobre la cinta, pero una máscara hace
+       transparente el contenedor: el producto que entraba desaparecía en vez
+       de aproximarse. Ahora son dos velos sobre los extremos que combinan
+       tres cosas, y ninguna borra el producto:
+
+         · backdrop-filter: desenfoca lo que pasa por DEBAJO, así la tarjeta
+           entrante se ve pero fuera de foco, y se define al avanzar;
+         · un degradado del propio verde de la sección, que la funde con el
+           fondo (el efecto de "opacidad" que se buscaba) y de paso tapa el
+           corte a filo del contenedor;
+         · mask-image sobre el velo —no sobre la cinta—, para que el desenfoque
+           se disipe hacia el centro en vez de cortarse de golpe.
+
+       pointer-events:none es imprescindible: si no, estas dos franjas se
+       comerían los clics de las tarjetas que quedan debajo. */
+    .destacados-cinta {
+        position: relative;
+    }
+
+    .destacados-cinta::before,
+    .destacados-cinta::after {
+        content: "";
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        z-index: 2;
+        width: 7%;
+        max-width: 130px;
+        pointer-events: none;
+        /* Ojo con el orden: el compilador de CSS no conserva las dos
+           declaraciones, se queda con la ÚLTIMA. Con la estándar primero el
+           build publicaba solo `-webkit-backdrop-filter`, que Firefox no
+           entiende. Así publica la estándar, que es la que soportan Chrome,
+           Firefox y Safari 18+.
+           En un Safari anterior a 18 no habrá desenfoque, pero el degradado de
+           color de abajo sí se aplica: se pierde el matiz, no el efecto. */
+        -webkit-backdrop-filter: blur(5px);
+        backdrop-filter: blur(5px);
+    }
+
+    .destacados-cinta::before {
+        left: 0;
+        background: linear-gradient(to right, color-mix(in srgb, var(--color-green-950) 85%, transparent) 0, transparent 85%);
+        mask-image: linear-gradient(to right, #000 15%, transparent 100%);
+    }
+
+    .destacados-cinta::after {
+        right: 0;
+        background: linear-gradient(to left, color-mix(in srgb, var(--color-green-950) 85%, transparent) 0, transparent 85%);
+        mask-image: linear-gradient(to left, #000 15%, transparent 100%);
+    }
+
     /* El movimiento continuo necesita avance lineal: con la curva por defecto
        el carrusel "salta" en cada transición en vez de deslizarse parejo. */
     .destacados-swiper .swiper-wrapper {
         transition-timing-function: linear;
     }
-    /* Las tarjetas deben estirarse a la misma altura dentro del slide. */
+    /* Las tarjetas deben estirarse a la misma altura dentro del slide.
+       El ancho NO se toca aquí: lo calcula Swiper a partir de slidesPerView.
+       Se probó fijarlo con clamp() y slidesPerView:'auto' para que la cinta se
+       adaptara sola, pero con ancho automático Swiper no puede saber cuántas
+       tarjetas caben hasta medir el DOM, y clona de menos para el loop: el
+       carrusel se reiniciaba antes de recorrerlas todas. Con valores
+       numéricos el loop es predecible. */
     .destacados-swiper .swiper-slide {
         height: auto;
         display: flex;
@@ -97,8 +176,10 @@ try {
 
         const total = Number(el.dataset.total ?? '0');
         // El loop de Swiper necesita bastante más slides que los visibles; con
-        // pocos productos se queda quieto en vez de dar saltos raros.
-        if (total < 6) return;
+        // pocos productos se queda quieto en vez de dar saltos raros. Ahora la
+        // cinta ocupa todo el ancho y caben más tarjetas a la vez, así que el
+        // mínimo sube: por eso se piden 18 destacados y no 12.
+        if (total < 8) return;
 
         // Un carrusel que avanza solo, sin parar, es exactamente el tipo de
         // movimiento que molesta a quien activó "reducir movimiento" en su
@@ -107,9 +188,14 @@ try {
 
         instancia = new Swiper(el, {
             modules: [Autoplay, FreeMode],
-            slidesPerView: 1.15,
+            slidesPerView: 1.35,
             spaceBetween: 18,
             loop: true,
+            // Clones de más a cada lado. Sin esto, cuando el bucle daba la
+            // vuelta se quedaba sin slides por delante y saltaba al principio
+            // de golpe, en vez de seguir de largo. Con 18 productos y 6,5
+            // visibles como máximo, 4 extra dan margen de sobra.
+            loopAdditionalSlides: 4,
             speed: 5000,
             freeMode: { enabled: true, momentum: false },
             autoplay: menosMovimiento ? false : {
@@ -117,10 +203,17 @@ try {
                 disableOnInteraction: false,
                 pauseOnMouseEnter: true,
             },
+            // Escalones hasta 1800: la cinta llega a 2000px de ancho, así que
+            // sin los tramos altos las tarjetas se estiraban en pantallas
+            // grandes. El tope es 6.5 a propósito: con 18 productos, el loop
+            // necesita bastantes más slides que los visibles para no quedarse
+            // sin clones y dar el salto.
             breakpoints: {
-                640: { slidesPerView: 2.2, spaceBetween: 18 },
-                1024: { slidesPerView: 3.4, spaceBetween: 18 },
-                1280: { slidesPerView: 4, spaceBetween: 18 },
+                640: { slidesPerView: 2.4, spaceBetween: 18 },
+                900: { slidesPerView: 3.3, spaceBetween: 18 },
+                1200: { slidesPerView: 4.4, spaceBetween: 20 },
+                1500: { slidesPerView: 5.5, spaceBetween: 20 },
+                1800: { slidesPerView: 6.5, spaceBetween: 22 },
             },
         });
     }
