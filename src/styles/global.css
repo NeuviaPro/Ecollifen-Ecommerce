@@ -81,6 +81,20 @@
   --color-primary-hover: var(--color-green-950);
   --color-primary-contrast: var(--color-cream-50);
 
+  /* --- Header claro ------------------------------------------------------
+     El nav principal pasó de Verde Bosque a fondo blanco con tipografía en
+     Tierra (#7A3B1E), el mismo café de los botones de la línea Raíz Viva.
+     Se declaran como tokens y no sueltos en el componente para que el día
+     que se ajuste el tono, se cambie en un solo lugar.
+
+     Contraste: Tierra sobre blanco da 8.2:1 → cumple AA y AAA para texto
+     normal, así que los ítems del nav se leen sin problema. */
+  --color-header-bg: #ffffff;
+  --color-header-fg: var(--color-earth-500); /* texto e íconos del nav */
+  --color-header-fg-hover: var(--color-green-600); /* Verde Principal al pasar el mouse */
+  --color-header-border: var(--color-cream-300);
+  --color-header-hover-bg: var(--color-earth-50); /* fondo suave de botones del nav */
+
   --color-isotipo: var(--color-green-600); /* Verde Principal — logo */
 
   /* CTA / Tienda. Ojo: el blanco sobre Verde Agro NO cumple AA (3.3:1);

@@ -47,8 +47,11 @@ try {
         </div>
     </div>
 
-    {/* Nav principal: Verde Bosque (rol Marca/Header del manual) */}
-    <div class="bg-primary text-primary-contrast">
+    {/* Nav principal: fondo blanco con tipografía en Tierra (#7A3B1E), el mismo
+        café de los botones de Raíz Viva. El borde inferior es el que separa el
+        nav del contenido: sin el verde de antes, sin línea la barra se fundía
+        con las secciones claras de abajo. */}
+    <div class="border-b border-header-border bg-header-bg text-header-fg">
         <div class="mx-auto flex max-w-6xl items-center gap-6 px-6 py-3">
             <a href="/" class="flex shrink-0 items-center">
                 <Picture
@@ -69,7 +72,7 @@ try {
                 <Buscador class="hidden md:block" />
 
                 {/* Carrito — abre el drawer */}
-                <button type="button" data-cart-toggle aria-label="Abrir carrito" class="relative flex items-center gap-2 rounded-lg p-2.5 transition-colors hover:bg-white/10">
+                <button type="button" data-cart-toggle aria-label="Abrir carrito" class="relative flex items-center gap-2 rounded-lg p-2.5 transition-colors hover:bg-header-hover-bg hover:text-header-fg-hover">
                     <svg class="size-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                         <circle cx="9" cy="20" r="1.5"></circle>
                         <circle cx="18" cy="20" r="1.5"></circle>
@@ -86,7 +89,7 @@ try {
                     aria-label="Abrir menú"
                     aria-controls="mobile-menu"
                     aria-expanded="false"
-                    class="rounded-lg p-2.5 transition-colors hover:bg-white/10 lg:hidden"
+                    class="rounded-lg p-2.5 transition-colors hover:bg-header-hover-bg hover:text-header-fg-hover lg:hidden"
                 >
                     <svg class="size-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
                         <path d="M4 6h16M4 12h16M4 18h16"></path>

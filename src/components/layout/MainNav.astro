@@ -12,8 +12,10 @@ interface Props {
 
 const { class: className, areas } = Astro.props;
 
-// El rediseño marca en verde claro la sección en la que estás. Se compara con
-// startsWith para que /tienda/motosierras siga marcando "Tienda".
+// El rediseño marca la sección en la que estás. Con el nav ya en blanco, el
+// verde claro de antes (green-300) quedaba ilegible: ahora la sección activa se
+// marca con el Verde Principal del isotipo, que sí contrasta sobre blanco.
+// Se compara con startsWith para que /tienda/motosierras siga marcando "Tienda".
 const ruta = Astro.url.pathname;
 const esActivo = (href: string) => href !== '/' && ruta.startsWith(href);
 const enTienda = ruta.startsWith('/tienda');
@@ -28,8 +30,8 @@ const enTienda = ruta.startsWith('/tienda');
                 <a
                     href={item.href}
                     class:list={[
-                        "flex items-center gap-1 text-sm whitespace-nowrap transition-colors hover:text-green-300",
-                        enTienda ? "font-bold text-green-300" : "font-medium",
+                        "flex items-center gap-1 text-sm whitespace-nowrap transition-colors hover:text-header-fg-hover",
+                        enTienda ? "font-bold text-header-fg-hover" : "font-medium",
                     ]}
                     aria-current={enTienda ? 'page' : undefined}
                 >
@@ -69,8 +71,8 @@ const enTienda = ruta.startsWith('/tienda');
         ) : (
             <a
                 class:list={[
-                    "text-sm whitespace-nowrap transition-colors hover:text-green-300",
-                    esActivo(item.href) ? "font-bold text-green-300" : "font-medium",
+                    "text-sm whitespace-nowrap transition-colors hover:text-header-fg-hover",
+                    esActivo(item.href) ? "font-bold text-header-fg-hover" : "font-medium",
                 ]}
                 aria-current={esActivo(item.href) ? 'page' : undefined}
                 href={item.href}
