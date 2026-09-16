@@ -29,9 +29,34 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger';
 
 gsap.registerPlugin(ScrollTrigger);
 
-/** Duración y curva base. Cambiarlas aquí cambia el ritmo de todo el sitio. */
-export const DURACION = 0.65;
+/**
+ * Duración y curva base.
+ *
+ * La duración YA NO se define aquí: sale del token `--duracion-anim` de
+ * global.css, para que CSS y GSAP compartan un único valor. Antes estaban
+ * declaradas en los dos sitios y habían divergido, así que dos entradas que
+ * debían sentirse iguales no lo hacían.
+ *
+ * `SUAVIZADO` sigue siendo un nombre de GSAP porque GSAP no entiende
+ * cubic-bezier sin un plugin extra; su equivalente en CSS es `--easing-anim`,
+ * y los dos están documentados juntos en global.css. Si cambias uno, cambia
+ * el otro.
+ */
+export const DURACION = 0.65;   // respaldo si el token aún no está disponible
 export const SUAVIZADO = 'power3.out';
+
+/** Lee la duración base del CSS. Se consulta al animar, no al importar el
+ *  módulo, para no depender de si la hoja de estilos ya se aplicó. */
+function duracion(): number {
+    if (typeof window === 'undefined') return DURACION;
+    const valor = getComputedStyle(document.documentElement)
+        .getPropertyValue('--duracion-anim')
+        .trim();
+    if (!valor) return DURACION;
+    const numero = parseFloat(valor);
+    if (!Number.isFinite(numero)) return DURACION;
+    return valor.endsWith('ms') ? numero / 1000 : numero;
+}
 
 /** Punto de disparo: cuando el elemento cruza el 88% de la altura de pantalla. */
 const DISPARO = 'top 88%';
@@ -80,7 +105,25 @@ export function menosMovimiento(): boolean {
  * en esa misma tarjeta dejaría de moverse para siempre. La opacidad sí se
  * conserva en línea, que es justo lo que mantiene el elemento visible.
  */
-const LIMPIAR = 'transform';
+const LIMPIAR = 'transform,transition';
+
+/**
+ * Estado extra que se aplica al ARRANCAR cualquier entrada.
+ *
+ * Apagar la transición CSS mientras GSAP anima no es un detalle: varios
+ * elementos del sitio llevan `transition-all` o `transition-transform` de
+ * Tailwind para su efecto de hover (las vitrinas de la home, las tarjetas de
+ * Raíz Viva). Sin esto, GSAP escribe `transform` en cada fotograma y la
+ * transición CSS intenta interpolar CADA uno de esos cambios: la entrada se
+ * siente arrastrada y, al terminar, el clearProps dispara una transición de
+ * vuelta.
+ *
+ * Se apaga al empezar y LIMPIAR la devuelve al final, así el hover vuelve a
+ * funcionar intacto. Resolverlo aquí —y no quitando `transition-` de cada
+ * componente— es lo que mantiene la regla del archivo: los componentes solo
+ * marcan HTML, el comportamiento vive en un único sitio.
+ */
+const SIN_TRANSICION = { transition: 'none' };
 
 /**
  * Anima todos los elementos marcados de la página actual.
@@ -100,9 +143,9 @@ export function revelarPagina(): void {
 
     marcados.forEach((el) => {
         el.dataset.animListo = '';
-        gsap.fromTo(el, preset(el.dataset.anim), {
+        gsap.fromTo(el, { ...preset(el.dataset.anim), ...SIN_TRANSICION }, {
             ...FINAL,
-            duration: DURACION,
+            duration: duracion(),
             ease: SUAVIZADO,
             delay: Number(el.dataset.animDelay) || 0,
             clearProps: LIMPIAR,
@@ -115,9 +158,9 @@ export function revelarPagina(): void {
         const hijos = Array.from(cont.children) as HTMLElement[];
         if (hijos.length === 0) return;
 
-        gsap.fromTo(hijos, preset(cont.dataset.animPreset ?? null), {
+        gsap.fromTo(hijos, { ...preset(cont.dataset.animPreset ?? null), ...SIN_TRANSICION }, {
             ...FINAL,
-            duration: DURACION,
+            duration: duracion(),
             ease: SUAVIZADO,
             delay: Number(cont.dataset.animDelay) || 0,
             stagger: Number(cont.dataset.animStagger) || 0.09,

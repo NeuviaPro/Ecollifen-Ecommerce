@@ -97,6 +97,20 @@
   --color-substrate-contrast: var(--color-cream-50);
 
   --color-ring: var(--color-green-600); /* foco */
+
+  /* --- Ritmo de las animaciones -------------------------------------------
+     Duracion y curva base del sitio, en un solo lugar. GSAP las LEE de aqui
+     (ver duracion() en @/lib/animaciones), asi que cambiar estos dos valores
+     cambia por igual lo que anima con CSS y lo que anima con JavaScript.
+
+     Antes estaban definidas dos veces y no coincidian: GSAP usaba power3.out
+     y el CSS un cubic-bezier de quinto grado, de modo que dos entradas que
+     debian sentirse iguales no lo hacian.
+
+     El cubic-bezier de abajo es el equivalente de "power3.out" en GSAP
+     (easeOutQuart). Si cambias uno, cambia el otro. */
+  --duracion-anim: 0.65s;
+  --easing-anim: cubic-bezier(0.165, 0.84, 0.44, 1);
 }
 
 /* ===================================================================
@@ -191,7 +205,7 @@
 
   html.anim .linea-hero {
     transform-origin: left;
-    animation: crecer-linea 0.7s cubic-bezier(0.22, 1, 0.36, 1) 0.15s backwards;
+    animation: crecer-linea var(--duracion-anim) var(--easing-anim) 0.15s backwards;
   }
 }
 
