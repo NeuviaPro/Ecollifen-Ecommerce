@@ -14,6 +14,12 @@ interface Props {
 
 const { variante = 'header', class: clase } = Astro.props;
 const esHeader = variante === 'header';
+
+// Los dos buscadores viven sobre fondos opuestos y por eso no pueden compartir
+// colores: el del header va sobre el nav BLANCO (texto café, borde visible) y
+// el del drawer móvil sigue sobre Verde Bosque (texto blanco translúcido).
+// Antes ambos usaban el mismo blanco translúcido; al aclarar el nav, la caja y
+// el texto del buscador de escritorio desaparecían sobre el fondo.
 ---
 
 <div
@@ -24,10 +30,12 @@ const esHeader = variante === 'header';
         <label
             class:list={[
                 "flex items-center gap-2 rounded-lg",
-                esHeader ? "bg-white/10 px-3 py-1.5" : "border border-white/20 bg-white/10 px-3 py-2.5",
+                esHeader
+                    ? "border border-header-border bg-background px-3 py-1.5 focus-within:border-header-fg-hover"
+                    : "border border-white/20 bg-white/10 px-3 py-2.5",
             ]}
         >
-            <svg class="size-4 shrink-0 text-green-200" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+            <svg class:list={["size-4 shrink-0", esHeader ? "text-header-fg" : "text-green-200"]} viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
                 <circle cx="11" cy="11" r="7"></circle>
                 <path d="m20 20-3-3"></path>
             </svg>
@@ -39,8 +47,10 @@ const esHeader = variante === 'header';
                 aria-label="Buscar productos"
                 data-buscador-input
                 class:list={[
-                    "bg-transparent text-sm text-white placeholder:text-green-200 focus:outline-none",
-                    esHeader ? "w-40" : "w-full",
+                    "bg-transparent text-sm focus:outline-none",
+                    esHeader
+                        ? "w-40 text-foreground placeholder:text-muted"
+                        : "w-full text-white placeholder:text-green-200",
                 ]}
             />
             <button
@@ -48,7 +58,10 @@ const esHeader = variante === 'header';
                 data-buscador-limpiar
                 hidden
                 aria-label="Limpiar búsqueda"
-                class="shrink-0 rounded-full p-0.5 text-green-200 transition-colors hover:text-white"
+                class:list={[
+                    "shrink-0 rounded-full p-0.5 transition-colors",
+                    esHeader ? "text-muted hover:text-header-fg" : "text-green-200 hover:text-white",
+                ]}
             >
                 <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
                     <path d="M6 6l12 12M18 6 6 18"></path>

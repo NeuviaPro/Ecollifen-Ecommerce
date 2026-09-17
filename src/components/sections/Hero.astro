@@ -87,9 +87,13 @@ const beneficios = [
                             </p>
 
                             <div class="mt-8 flex flex-col gap-3 sm:flex-row">
+                                {/* CTA principal: blanco en reposo (destaca sobre la
+                                    foto sin competir con el verde de la marca) y Verde
+                                    Agro al pasar el mouse. El texto va en Tierra, el
+                                    mismo café del nav y de los botones de Raíz Viva. */}
                                 <a
                                     href={asesoriaHref()}
-                                    class="brillo-cta inline-flex w-full items-center justify-center gap-2 rounded-lg bg-cta px-7 py-4 font-semibold text-primary transition-colors hover:bg-green-600 hover:text-white sm:w-auto"
+                                    class="brillo-cta inline-flex w-full items-center justify-center gap-2 rounded-lg bg-white px-7 py-4 font-semibold text-earth-500 transition-colors hover:bg-green-500 hover:text-white sm:w-auto"
                                 >
                                     <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.5a8.4 8.4 0 0 1-8.5 8.5 8.6 8.6 0 0 1-3.9-.9L3 21l1.9-5.6A8.5 8.5 0 1 1 21 11.5Z"/></svg>
                                     Solicitar asesoría técnica
@@ -134,7 +138,10 @@ const beneficios = [
         <ul class="mx-auto grid max-w-6xl gap-y-4 px-6 py-6 sm:grid-cols-2 lg:grid-cols-4">
             {beneficios.map((b) => (
                 <li class="flex items-center gap-3">
-                    <span class="flex size-10 shrink-0 items-center justify-center rounded-full bg-cta text-primary">
+                    {/* Círculo blanco con el ícono en Tierra, igual que el nav.
+                        El texto de al lado se queda claro a propósito: va sobre
+                        el verde oscuro de la tira y en café no se leería. */}
+                    <span class="flex size-10 shrink-0 items-center justify-center rounded-full bg-white text-earth-500">
                         {b.icon === 'chat' && <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.4 8.4 0 0 1-8.5 8.5 8.6 8.6 0 0 1-3.9-.9L3 21l1.9-5.6A8.5 8.5 0 1 1 21 11.5Z"/></svg>}
                         {b.icon === 'gear' && <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-2.7 1.1V21a2 2 0 1 1-4 0v-.1a1.6 1.6 0 0 0-2.7-1.1l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0-1.1-2.7H3a2 2 0 1 1 0-4h.1a1.6 1.6 0 0 0 1.1-2.7l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 1.8.3H9a1.6 1.6 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.6 1.6 0 0 0 2.7 1.1l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8V9a1.6 1.6 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1Z"/></svg>}
                         {b.icon === 'truck' && <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 17h4V5H2v12h3"/><path d="M14 8h4l3 4v5h-3"/><circle cx="7.5" cy="17.5" r="1.5"/><circle cx="17.5" cy="17.5" r="1.5"/></svg>}
