@@ -33,10 +33,24 @@ try {
 }
 ---
 
-<header class="w-full">
-    {/* Barra utilitaria: verde más oscuro que el nav (como el diseño) */}
-    <div class="bg-green-950 text-green-50">
-        <div class="mx-auto flex max-w-6xl items-center justify-between gap-4 px-6 py-2 text-xs">
+{/* Centinela del scroll. En cuanto sale de pantalla, el header ya está pegado
+    arriba y pasa a modo compacto. Se usa un IntersectionObserver sobre este
+    punto en vez de escuchar el scroll: el navegador avisa solo cuando cruza el
+    borde, en lugar de ejecutar código en cada fotograma del desplazamiento.
+    Mide 1px y lo compensa con un margen negativo, así no altera el layout. */}
+<div data-tope-pagina aria-hidden="true" class="h-px -mb-px"></div>
+
+{/* sticky y NO fixed: así el header sigue ocupando su sitio en el flujo y la
+    página no da el salto de altura típico al fijar una cabecera.
+    z-30 lo deja por encima del contenido pero por debajo de los drawers del
+    carrito y de los filtros (z-40/z-50), que deben poder taparlo. */}
+<header data-header class="sticky top-0 z-30 w-full">
+    {/* Barra utilitaria: verde más oscuro que el nav (como el diseño).
+        Al bajar se pliega — es lo primero que sobra cuando alguien ya está
+        leyendo. El grid de 1fr a 0fr permite animar el plegado sin fijar una
+        altura a mano. */}
+    <div class="barra-utilitaria grid bg-green-950 text-green-50">
+        <div class="mx-auto flex max-w-6xl items-center justify-between gap-4 overflow-hidden px-6 py-2 text-xs">
             <p class="font-mono">
                 Soluciones que echan raíces · Despacho a todo Chile
             </p>
@@ -51,8 +65,13 @@ try {
         café de los botones de Raíz Viva. El borde inferior es el que separa el
         nav del contenido: sin el verde de antes, sin línea la barra se fundía
         con las secciones claras de abajo. */}
-    <div class="border-b border-header-border bg-header-bg text-header-fg">
-        <div class="mx-auto flex max-w-6xl items-center gap-6 px-6 py-3">
+    {/* El fondo translúcido y el desenfoque van AQUÍ y no en el <header>:
+        backdrop-filter convierte al elemento en contenedor de los hijos
+        position:fixed, y el drawer del menú móvil vive dentro de este header.
+        Puesto arriba, el drawer dejaría de referirse al viewport y quedaría
+        mal colocado al abrirlo. */}
+    <div class="nav-barra border-b border-header-border bg-header-bg text-header-fg">
+        <div class="nav-interior mx-auto flex max-w-6xl items-center gap-6 px-6 py-3">
             <a href="/" class="flex shrink-0 items-center">
                 <Picture
                     src={Logo}
@@ -61,7 +80,7 @@ try {
                     width={52}
                     height={52}
                     densities={[1, 2]}
-                    class="h-13 w-auto"
+                    class="nav-logo h-13 w-auto"
                 />
             </a>
 
@@ -181,6 +200,63 @@ try {
     </div>
 </header>
 
+<style>
+    /* --- Modo compacto del header ------------------------------------------
+       Arriba del todo se ve entero y sólido. Al bajar se encoge y deja
+       entrever el contenido, para que estorbe menos mientras se lee.
+
+       Todo se resuelve con una clase en el <header> (.es-compacto) que pone el
+       JavaScript: las transiciones y el aspecto viven en CSS, que es lo que
+       mejor sabe hacer cada uno.
+
+       No hace falta tocar prefers-reduced-motion: la regla global de
+       global.css ya anula estas transiciones para quien lo tenga activado. */
+
+    /* La barra utilitaria se pliega. De 1fr a 0fr en vez de max-height: no hay
+       que inventar una altura, y funciona aunque el texto pase a dos líneas. */
+    .barra-utilitaria {
+        grid-template-rows: 1fr;
+        transition: grid-template-rows 0.32s ease;
+    }
+
+    [data-header].es-compacto .barra-utilitaria {
+        grid-template-rows: 0fr;
+    }
+
+    .nav-barra {
+        transition: background-color 0.32s ease, box-shadow 0.32s ease, backdrop-filter 0.32s ease;
+    }
+
+    /* Translúcido + desenfoque, no `opacity`.
+       Bajarle la opacidad al elemento entero también apagaría el logo, el
+       texto y los iconos, y el nav quedaría ilegible sobre cualquier fondo.
+       Así el FONDO deja ver lo que pasa por debajo mientras el contenido sigue
+       a plena opacidad; el desenfoque es lo que mantiene el contraste. */
+    [data-header].es-compacto .nav-barra {
+        background-color: color-mix(in srgb, var(--color-header-bg) 78%, transparent);
+        -webkit-backdrop-filter: blur(12px) saturate(140%);
+        backdrop-filter: blur(12px) saturate(140%);
+        box-shadow: 0 10px 30px -18px rgba(18, 58, 30, 0.55);
+    }
+
+    /* Menos alto: el nav pierde algo de aire y el logo encoge con él. */
+    .nav-interior {
+        transition: padding-block 0.32s ease;
+    }
+
+    [data-header].es-compacto .nav-interior {
+        padding-block: 0.45rem;
+    }
+
+    .nav-logo {
+        transition: height 0.32s ease;
+    }
+
+    [data-header].es-compacto .nav-logo {
+        height: 2.5rem;
+    }
+</style>
+
 <script>
     // Drawer del menú móvil. Se re-vincula en cada navegación por el
     // ClientRouter (astro:page-load); las funciones consultan el DOM al vuelo.
@@ -219,8 +295,36 @@ try {
         });
     }
 
+    // --- Header compacto al bajar -----------------------------------------
+    // Se observa el centinela de 1px que va justo encima del header: mientras
+    // se ve, estamos arriba del todo; en cuanto sale de pantalla, el header ya
+    // está pegado y se compacta.
+    //
+    // Con IntersectionObserver y no con un listener de scroll: el navegador
+    // avisa solo en el cruce, en vez de ejecutar código en cada fotograma del
+    // desplazamiento.
+    let observadorTope: IntersectionObserver | null = null;
+
+    function vigilarScroll() {
+        // El ClientRouter reemplaza el DOM en cada navegación: el observador
+        // anterior apuntaría a un nodo que ya no existe.
+        observadorTope?.disconnect();
+        observadorTope = null;
+
+        const header = document.querySelector('[data-header]');
+        const tope = document.querySelector('[data-tope-pagina]');
+        if (!header || !tope) return;
+
+        observadorTope = new IntersectionObserver(([entrada]) => {
+            header.classList.toggle('es-compacto', !entrada.isIntersecting);
+        });
+
+        observadorTope.observe(tope);
+    }
+
     // Vincular tras cada carga/navegación; cerrar con Escape (una sola vez).
     document.addEventListener('astro:page-load', bindMenu);
+    document.addEventListener('astro:page-load', vigilarScroll);
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') closeMenu();
     });

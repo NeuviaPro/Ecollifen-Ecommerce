@@ -137,6 +137,18 @@ try {
         mask-image: linear-gradient(to left, #000 15%, transparent 100%);
     }
 
+    /* En pantallas chicas la foto pasa de cuadrada a 4:3.
+       La tarjeta del catálogo usa aspect-square, que a lo ancho de un móvil
+       se traduce en una imagen de casi 300px de alto y una tarjeta que no
+       cabe en pantalla. Se acota AQUÍ, dentro del carrusel de la home y bajo
+       640px: la ficha de producto y la cuadrícula de /tienda siguen con su
+       foto cuadrada, que ahí sí tiene sitio. */
+    @media (max-width: 639px) {
+        .destacados-swiper .swiper-slide .aspect-square {
+            aspect-ratio: 4 / 3;
+        }
+    }
+
     /* El movimiento continuo necesita avance lineal: con la curva por defecto
        el carrusel "salta" en cada transición en vez de deslizarse parejo. */
     .destacados-swiper .swiper-wrapper {
@@ -188,8 +200,13 @@ try {
 
         instancia = new Swiper(el, {
             modules: [Autoplay, FreeMode],
-            slidesPerView: 1.35,
-            spaceBetween: 18,
+            // En móvil el ancho del slide manda sobre el ALTO de la tarjeta:
+            // la foto es cuadrada, así que cada píxel de ancho es un píxel de
+            // alto. Con 1.35 la tarjeta llegaba a ~465px en una pantalla de
+            // 390px y apenas cabía; con 1.6 baja a ~360px y además se ve mejor
+            // que hay más productos al lado.
+            slidesPerView: 1.6,
+            spaceBetween: 14,
             loop: true,
             // Clones de más a cada lado. Sin esto, cuando el bucle daba la
             // vuelta se quedaba sin slides por delante y saltaba al principio
