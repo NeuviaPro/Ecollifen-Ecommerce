@@ -5,7 +5,7 @@
 // necesidad → asesoría → solución.
 //
 // El carrusel lo maneja Swiper (crossfade + flechas + puntos + auto-avance).
-import { getWPSlides } from '@/lib/api'
+import { getHeroSlides, getAllWooCategories } from '@/lib/api'
 
 // El CSS de Swiper se importa AQUÍ, en el frontmatter, y no dentro del
 // <script> de abajo. Es a propósito: importado desde el script, Vite lo inyecta
@@ -21,21 +21,47 @@ import 'swiper/css/effect-fade';
 import { Picture } from 'astro:assets';
 import { asesoriaHref } from '@/lib/contacto';
 
-let heroSlides;
+import type { HeroSlide, WooCategory } from '@/lib/api';
+
+let heroSlides: HeroSlide[] = [];
+let categorias: WooCategory[] = [];
 try {
-    heroSlides = await getWPSlides();
+    [heroSlides, categorias] = await Promise.all([
+        getHeroSlides(),
+        getAllWooCategories(),
+    ]);
 } catch (error) {
     console.error('[hero] No se pudieron cargar los slides:', error);
 }
 
 // Fallback: si no hay slides en WP, un slide por defecto con la bajada comercial.
-const slides = (heroSlides && heroSlides.length > 0)
-    ? heroSlides.map((s) => ({ titulo: s.acf.titulo, descripcion: s.acf.descripcion, url: s.acf.url }))
-    : [{
-        titulo: 'Elige mejor antes de trabajar la tierra',
-        descripcion: 'Productos, maquinaria y asesoría técnica para huertos, jardines, invernaderos y campo. Te ayudamos a encontrar la solución correcta antes de comprar.',
-        url: null as string | null,
-    }];
+const slides: HeroSlide[] = heroSlides.length > 0 ? heroSlides : [{
+    titulo: 'Elige mejor antes de trabajar la tierra',
+    descripcion: 'Productos, maquinaria y asesoría técnica para huertos, jardines, invernaderos y campo. Te ayudamos a encontrar la solución correcta antes de comprar.',
+    imagen: null,
+    destino: null,
+}];
+
+/**
+ * Texto del botón según a dónde lleva el slide.
+ *
+ * Cuando el destino es una categoría de la tienda se usa su NOMBRE REAL de
+ * WooCommerce ("Ver Raíz Viva"), no el slug convertido a mano: así sale con
+ * sus tildes y mayúsculas correctas, y si mañana renombran la categoría el
+ * botón cambia solo. Para cualquier otro destino —una futura página de
+ * ofertas, por ejemplo— queda un texto genérico que no promete de más.
+ */
+function textoBoton(destino: string | null): string {
+    if (!destino) return 'Explorar productos';
+
+    const enTienda = destino.match(/^\/tienda\/([^/?#]+)/);
+    if (enTienda) {
+        const categoria = categorias.find((c) => c.slug === enTienda[1]);
+        if (categoria) return `Ver ${categoria.name}`;
+    }
+
+    return 'Ver más';
+}
 
 const beneficios = [
     { texto: 'Asesoría técnica especializada', icon: 'chat' },
@@ -50,9 +76,9 @@ const beneficios = [
         <div class="swiper-wrapper">
             {slides.map((slide, i) => (
                 <div class="swiper-slide">
-                    {slide.url ? (
+                    {slide.imagen ? (
                         <Picture
-                            src={slide.url}
+                            src={slide.imagen}
                             inferSize
                             formats={['avif', 'webp']}
                             widths={[768, 1280, 1920]}
@@ -98,12 +124,17 @@ const beneficios = [
                                     <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.5a8.4 8.4 0 0 1-8.5 8.5 8.6 8.6 0 0 1-3.9-.9L3 21l1.9-5.6A8.5 8.5 0 1 1 21 11.5Z"/></svg>
                                     Solicitar asesoría técnica
                                 </a>
+                                {/* Botón contextual: lleva a donde diga el campo
+                                    "Url" del slide en WordPress. Un slide de Raíz
+                                    Viva puede apuntar a /tienda/raiz-viva y uno de
+                                    ofertas a su propia página, sin tocar el código.
+                                    Si el campo va vacío, cae al catálogo completo. */}
                                 <a
-                                    href="/tienda"
+                                    href={slide.destino ?? '/tienda'}
                                     class="inline-flex w-full items-center justify-center gap-2 rounded-lg border-[1.5px] border-white/60 px-7 py-4 font-semibold text-white transition-colors hover:bg-white/10 sm:w-auto"
                                 >
                                     <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
-                                    Explorar productos
+                                    {textoBoton(slide.destino)}
                                 </a>
                             </div>
                         </div>

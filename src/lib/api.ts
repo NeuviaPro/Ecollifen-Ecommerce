@@ -59,14 +59,74 @@ interface Slide {
     title: { rendered: string }; // WP anida el título dentro de .rendered
     featured_media: number;
     acf: SlideACF;
+    /** Lo adjunta WordPress al pedir el endpoint con `?_embed`. */
+    _embedded?: {
+        "wp:featuredmedia"?: { source_url?: string }[];
+    };
+}
+
+/** Un slide del hero, ya resuelto y listo para pintar. */
+export interface HeroSlide {
+    titulo: string;
+    descripcion: string;
+    /** Imagen de fondo (URL absoluta) o null si el slide no tiene ninguna. */
+    imagen: string | null;
+    /** A dónde lleva el botón del slide, o null si no se indicó destino. */
+    destino: string | null;
+}
+
+// Extensiones que delatan que un valor es un archivo de imagen y no un enlace.
+const ES_ARCHIVO_IMAGEN = /\.(jpe?g|png|webp|avif|gif|svg)(\?.*)?$/i;
+
+/**
+ * Pasa una URL del propio sitio a ruta relativa.
+ *
+ * Importa para la navegación: con la URL absoluta el ClientRouter trata el
+ * enlace como salida del sitio y recarga la página entera; en relativo hace la
+ * transición suave como cualquier otro enlace interno. Un enlace externo se
+ * devuelve tal cual.
+ */
+function comoRutaInterna(url: string): string {
+    try {
+        const absoluta = new URL(url, import.meta.env.PUBLIC_SITE_URL || "https://ecollifen.cl");
+        const propio = new URL(import.meta.env.PUBLIC_SITE_URL || "https://ecollifen.cl");
+        if (absoluta.host !== propio.host) return url;
+        // WordPress vive en /wp: esas sí son páginas suyas, no rutas de Astro.
+        return absoluta.pathname.startsWith("/wp/")
+            ? absoluta.toString()
+            : absoluta.pathname + absoluta.search + absoluta.hash;
+    } catch {
+        return url;
+    }
 }
 
 // CPT para los slides:
-// El endpoint /wp/v2/slide devuelve un ARRAY de slides → Slide[].
-export async function getWPSlides(): Promise<Slide[]> {
-    const res = await fetchConReintentos(`${apiBase()}/wp/v2/slide`, "los slides");
+// Se pide con `_embed` para que WordPress adjunte la IMAGEN DESTACADA del
+// slide. Antes solo se leía el campo ACF "url", y por eso un slide cargado
+// como se espera en WordPress —con su imagen destacada— salía sin foto, con el
+// fondo de rayas de respaldo.
+export async function getHeroSlides(): Promise<HeroSlide[]> {
+    const res = await fetchConReintentos(`${apiBase()}/wp/v2/slide?_embed`, "los slides");
+    const crudos = await res.json() as Slide[];
 
-    return res.json() as Promise<Slide[]>;
+    return crudos.map((slide) => {
+        const destacada = slide._embedded?.["wp:featuredmedia"]?.[0]?.source_url ?? null;
+        const campoUrl = String(slide.acf?.url ?? "").trim();
+
+        // El campo "Url" nació apuntando a la imagen de fondo y ahora sirve
+        // para decir A DÓNDE lleva el botón. Se distinguen por el valor: si
+        // termina en una extensión de imagen es lo primero, y no se usa como
+        // destino (si no, el botón llevaría a un .jpeg suelto). Así los slides
+        // antiguos siguen funcionando sin tener que editarlos.
+        const urlEsImagen = campoUrl !== "" && ES_ARCHIVO_IMAGEN.test(campoUrl);
+
+        return {
+            titulo: String(slide.acf?.titulo ?? ""),
+            descripcion: String(slide.acf?.descripcion ?? ""),
+            imagen: destacada ?? (urlEsImagen ? campoUrl : null),
+            destino: !urlEsImagen && campoUrl !== "" ? comoRutaInterna(campoUrl) : null,
+        };
+    });
 }
 
 // --- WooCommerce: productos ---
