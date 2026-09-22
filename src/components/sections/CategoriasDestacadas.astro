@@ -1,0 +1,88 @@
+---
+// "Explora por área": mapa rápido del catálogo en la home.
+//
+// Reemplaza a la antigua sección de Producto Estrella (Raíz Viva), que dejó de
+// tener sentido aquí: la línea ya tiene su propio slide en el hero y su entrada
+// en el menú, así que repetirla en la home era insistir con lo mismo tres veces.
+//
+// Las áreas NO están escritas a mano: salen de las categorías raíz de
+// WooCommerce, con el mismo criterio que el menú y el footer (ver areasDeTienda
+// en @/lib/categorias). Si el cliente crea, renombra o vacía un área, esta
+// sección se actualiza sola en el próximo build.
+//
+// Iconos SVG y no fotos, a propósito: un área es un concepto ("Maquinarias"),
+// no un producto concreto, y cualquier foto que se eligiera sería la de un
+// artículo suelto haciendo de portada de todo un rubro. Además no dependen de
+// que existan seis fotos de calidad pareja —el catálogo hoy no las tiene— ni
+// suman peso a la página.
+import { getAllWooCategories, getCatalogoCompleto } from '@/lib/api';
+import { areasDeTienda, conteosDeRama } from '@/lib/categorias';
+import type { Area } from '@/lib/categorias';
+
+let areas: Area[] = [];
+try {
+    const [categorias, productos] = await Promise.all([
+        getAllWooCategories(),
+        getCatalogoCompleto(),
+    ]);
+    areas = areasDeTienda(categorias, conteosDeRama(categorias, productos));
+} catch (error) {
+    console.error('[categorias] No se pudieron cargar las áreas:', error);
+}
+
+// Un trazo por área, buscado por slug. Los slugs son los que ya fijó el
+// cliente en WooCommerce; si aparece uno nuevo cae en el icono genérico y la
+// sección no se rompe.
+const ICONOS: Record<string, string> = {
+    'jardineria': 'M12 21c0-5 2-9 7-11-1 5-3 8-7 9M12 21c0-6-2-10-7-12 1 6 3 9 7 11M12 21v-6',
+    'area-forestal': 'M12 3 6.5 12h3L5 19h14l-4.5-7h3L12 3ZM12 19v3',
+    'huertos-y-agricolas': 'M4 20c0-5 3-8 8-8s8 3 8 8M12 12V6M12 6c0-1.7 1.3-3 3-3M12 6c0-1.7-1.3-3-3-3',
+    'maquinarias': 'M4 17V9a2 2 0 0 1 2-2h7l3 4h2a2 2 0 0 1 2 2v4M4 17h16M7.5 17a1.5 1.5 0 1 0 3 0 1.5 1.5 0 1 0-3 0M14.5 17a1.5 1.5 0 1 0 3 0 1.5 1.5 0 1 0-3 0',
+    'herramientas': 'm14.5 5.5 4 4-9 9-4-4 9-9ZM5.5 14.5 3 21l6.5-2.5M16 3l5 5',
+    'repuestos': 'M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7ZM12 3v2.5M12 18.5V21M3 12h2.5M18.5 12H21M5.6 5.6l1.8 1.8M16.6 16.6l1.8 1.8M5.6 18.4l1.8-1.8M16.6 7.4l1.8-1.8',
+};
+
+const ICONO_GENERICO = 'M4 7h16M4 12h16M4 17h10';
+---
+
+{areas.length > 0 && (
+    <section class="mx-auto max-w-6xl px-6 py-14 md:py-16">
+        <div class="mb-7 flex items-end justify-between gap-4" data-anim>
+            <div>
+                <p class="font-mono text-[11px] tracking-[0.16em] text-isotipo">EXPLORA POR ÁREA</p>
+                <h2 class="mt-1.5 font-display text-3xl font-semibold text-primary">
+                    Todo el catálogo, por rubro
+                </h2>
+            </div>
+        </div>
+
+        {/* Tarjetas horizontales y no una rejilla de seis columnas: los nombres
+            reales son largos ("Jardinería y Áreas Verdes") y en columnas
+            estrechas se partían en tres líneas. */}
+        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3" data-anim-stagger="0.06">
+            {areas.map((area) => (
+                <a
+                    href={`/tienda/${area.slug}`}
+                    class="group flex items-center gap-4 rounded-2xl border border-border bg-surface p-4 transition-all duration-300 hover:-translate-y-1 hover:border-cta hover:shadow-[0_18px_36px_-22px_rgba(18,58,30,.4)]"
+                >
+                    <span class="flex size-12 shrink-0 items-center justify-center rounded-xl bg-green-50 text-isotipo transition-colors group-hover:bg-cta group-hover:text-white">
+                        <svg class="size-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d={ICONOS[area.slug] ?? ICONO_GENERICO} />
+                        </svg>
+                    </span>
+
+                    <span class="min-w-0 flex-1">
+                        <span class="block font-display text-[17px] leading-snug font-semibold text-primary">
+                            {area.name}
+                        </span>
+                        <span class="mt-0.5 block font-mono text-[11px] text-muted">
+                            {area.count} {area.count === 1 ? 'producto' : 'productos'}
+                        </span>
+                    </span>
+
+                    <span class="shrink-0 text-isotipo transition-transform duration-300 group-hover:translate-x-1" aria-hidden="true">→</span>
+                </a>
+            ))}
+        </div>
+    </section>
+)}

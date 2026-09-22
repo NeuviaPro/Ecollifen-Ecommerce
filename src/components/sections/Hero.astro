@@ -72,30 +72,52 @@ const beneficios = [
 ---
 
 <section class="bg-primary text-white">
-    <div class="hero-swiper swiper relative min-h-[560px] md:min-h-[600px]" data-hero-swiper data-slides={slides.length}>
+    <div class="hero-swiper swiper relative min-h-[480px] md:min-h-[600px]" data-hero-swiper data-slides={slides.length}>
         <div class="swiper-wrapper">
             {slides.map((slide, i) => (
                 <div class="swiper-slide">
+                    {/* fallbackFormat="jpeg": el formato de reserva lo elige Astro
+                        según el original, y con un .webp de entrada usaba PNG —
+                        cuatro archivos que sumaban 9,7 MB en el build (uno de
+                        4,3 MB). Casi ningún navegador los pide, pero pesaban en
+                        cada despliegue.
+
+                        object-position al 30% en móvil: la foto es panorámica y en
+                        una pantalla de 390px solo se ve un tercio del ancho.
+                        Centrada, los sacos quedaban justo detrás del titular;
+                        desplazada, el centro queda para el texto y el producto
+                        asoma al lado. Desde sm vuelve al centro.
+
+                        OJO: este comentario va FUERA del ternario de abajo. Dentro
+                        de la expresión, el compilador de Astro lo toma como parte
+                        de la sintaxis y falla con "Expected , or )". */}
                     {slide.imagen ? (
                         <Picture
                             src={slide.imagen}
                             inferSize
                             formats={['avif', 'webp']}
+                            fallbackFormat="jpeg"
                             widths={[768, 1280, 1920]}
                             sizes="100vw"
                             alt={slide.titulo}
                             loading={i === 0 ? 'eager' : 'lazy'}
-                            class="absolute inset-0 h-full w-full object-cover"
+                            class="absolute inset-0 h-full w-full object-cover object-[30%_center] sm:object-center"
                         />
                     ) : (
                         <div class="absolute inset-0 bg-[repeating-linear-gradient(115deg,#1a4526_0_22px,#173f22_22px_44px)]"></div>
                     )}
 
-                    {/* Velo verde: oscuro a la izquierda para el texto */}
-                    <div class="absolute inset-0 bg-[linear-gradient(90deg,rgba(10,30,16,.94)_0%,rgba(10,30,16,.6)_48%,rgba(10,30,16,.15)_100%)]"></div>
+                    {/* Velo verde.
+                        En escritorio va en HORIZONTAL, oscuro a la izquierda, que es
+                        donde vive el texto. Ese mismo degradado en un móvil dejaba
+                        el titular medio sobre la zona clara —texto blanco sobre el
+                        cielo del atardecer— porque ahí el texto ocupa todo el ancho.
+                        Por eso bajo md el velo es VERTICAL y parejo: cubre el bloque
+                        entero y la foto queda de fondo, legible de arriba abajo. */}
+                    <div class="absolute inset-0 bg-[linear-gradient(180deg,rgba(10,30,16,.70)_0%,rgba(10,30,16,.86)_45%,rgba(10,30,16,.94)_100%)] md:bg-[linear-gradient(90deg,rgba(10,30,16,.94)_0%,rgba(10,30,16,.6)_48%,rgba(10,30,16,.15)_100%)]"></div>
 
                     {/* Contenido */}
-                    <div class="relative flex min-h-[560px] items-center md:min-h-[600px]">
+                    <div class="relative flex min-h-[480px] items-center md:min-h-[600px]">
                         <div class="mx-auto w-full max-w-6xl px-6 py-16">
                             <p class="font-mono text-xs tracking-[0.2em] text-green-300">
                                 AGRICULTURA · JARDINERÍA · INVERNADEROS · ÁREAS VERDES

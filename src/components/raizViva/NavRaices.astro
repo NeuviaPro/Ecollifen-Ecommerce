@@ -19,16 +19,18 @@ interface Nodo {
 // Las Y coinciden con los puntos donde el tallo pasa por x=22, para que los
 // nodos queden exactamente encima de la curva y no flotando al lado.
 const nodos: Nodo[] = [
+    // Al quitar la sección "El sustrato" (duplicaba lo que ya cuenta La línea)
+    // los nodos se reparten de nuevo sobre el mismo recorrido, 20 → 540: dejar
+    // los valores viejos habría abierto un hueco a media raíz.
     { id: 'origen',   label: 'El origen',   y: 20 },
-    { id: 'linea',    label: 'La línea',    y: 150 },
-    { id: 'estrella', label: 'El sustrato', y: 280 },
-    { id: 'uso',      label: 'Cómo usarlo', y: 410 },
+    { id: 'linea',    label: 'La línea',    y: 193 },
+    { id: 'uso',      label: 'Cómo usarlo', y: 367 },
     { id: 'asesoria-rv', label: 'Asesoría', y: 540 },
 ];
 
 // Tallo principal: una vertical que serpentea suave, pasando por x=22 justo en
 // cada nodo. Las raicillas laterales salen entre nodo y nodo.
-const TALLO = 'M22 20 C 30 70, 14 100, 22 150 C 30 200, 14 230, 22 280 C 30 330, 14 360, 22 410 C 30 460, 14 490, 22 540';
+const TALLO = 'M22 20 C 30 78, 14 135, 22 193 C 30 251, 14 309, 22 367 C 30 425, 14 482, 22 540';
 
 const RAICILLAS = [
     'M22 78 C 15 84, 11 92, 8 103',

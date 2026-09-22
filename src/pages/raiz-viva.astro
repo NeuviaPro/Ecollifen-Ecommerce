@@ -56,12 +56,6 @@ const stats = [
     { valor: '6 años', label: 'TRABAJANDO LA TIERRA' },
 ];
 
-const bullets = [
-    'Contiene compost, perlita, turba y humus',
-    'Raíces más sanas, plantas con vigor y cosechas abundantes',
-    'Ideal para almácigos, huertos urbanos, hortalizas y trasplantes',
-];
-
 const formatos = ['6 L', '10 L', '20 L', '40 L'];
 
 const pasos = [
@@ -325,66 +319,6 @@ const pasos = [
                 </article>
             </div>
         )}
-    </section>
-
-    {/* Producto estrella — mismo copy aprobado que ProductoEstrella.astro,
-        con imagen a la izquierda (así lo pide el diseño para esta página). */}
-    <section id="estrella" class="mx-auto max-w-6xl scroll-mt-24 px-6 pt-16 md:pt-20">
-        <div class="grid items-center gap-12 overflow-hidden rounded-3xl border border-earth-500/20 bg-surface lg:grid-cols-[1fr_1.1fr]" data-anim>
-            <div class="relative min-h-105 self-stretch bg-earth-100">
-                <Image
-                    src={productoFrente}
-                    alt="Saco de sustrato Raíz Viva de frente"
-                    widths={[480, 768, 1024]}
-                    sizes="(min-width: 1024px) 45vw, 100vw"
-                    class="absolute inset-0 h-full w-full object-cover"
-                />
-            </div>
-
-            <div class="p-8 pr-8 md:p-12 md:pr-12 lg:pl-0">
-                <p class="font-mono text-[11px] tracking-[0.14em] text-substrate">PRODUCTO ESTRELLA</p>
-                <h2 class="mt-3 max-w-[22ch] font-display text-3xl leading-tight font-semibold text-balance text-earth-700 md:text-4xl">
-                    Sustrato completo de inicio premium
-                </h2>
-                <p class="mt-4 max-w-prose text-muted">
-                    Mezcla lista para siembra: sustrato premium que devuelve vida al suelo y da
-                    resultados visibles desde el primer cultivo.
-                </p>
-
-                <ul class="mt-6 flex flex-col gap-2.5">
-                    {bullets.map((bullet) => (
-                        <li class="flex items-start gap-2.5 text-sm text-foreground">
-                            <span class="mt-1 text-substrate">◆</span>
-                            {bullet}
-                        </li>
-                    ))}
-                </ul>
-
-                <div class="mt-7">
-                    <span class="block font-mono text-xs tracking-wide text-muted">FORMATOS</span>
-                    <div class="mt-2 flex flex-wrap gap-2">
-                        {formatos.map((f) => (
-                            <span class="rounded-md border border-earth-500/30 px-2.5 py-1.5 text-sm font-medium text-substrate transition-colors hover:bg-earth-50">{f}</span>
-                        ))}
-                    </div>
-                </div>
-
-                <div class="mt-8 flex flex-wrap gap-3">
-                    <a
-                        href={CATEGORIA_HREF}
-                        class="inline-flex items-center justify-center rounded-xl bg-substrate px-6 py-3.5 font-semibold text-substrate-contrast transition-colors hover:bg-earth-600"
-                    >
-                        Comprar Raíz Viva
-                    </a>
-                    <a
-                        href="/contacto"
-                        class="inline-flex items-center justify-center rounded-xl border-[1.5px] border-earth-500/35 px-6 py-3.5 font-semibold text-substrate transition-colors hover:bg-earth-50"
-                    >
-                        Ficha técnica
-                    </a>
-                </div>
-            </div>
-        </div>
     </section>
 
     {/* Cómo usarlo — guía general de siembra, no una promesa sobre un producto
