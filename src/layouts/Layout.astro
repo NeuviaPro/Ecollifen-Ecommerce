@@ -6,6 +6,7 @@ import Footer from '@/components/layout/Footer.astro'
 import CartDrawer from '@/components/cart/CartDrawer';
 import PreciosEnVivo from '@/components/product/PreciosEnVivo.astro';
 import VistaRapida from '@/components/product/VistaRapida.astro';
+import WhatsAppFlotante from '@/components/layout/WhatsAppFlotante.astro';
 
 interface Props {
 	title: string;
@@ -103,6 +104,7 @@ const tituloCompleto = `Ecollifén | ${title}`;
 			botón de vista rápida en cualquier página, así que el modal tiene
 			que existir en todas. Está oculto hasta que se abre. */}
 		<VistaRapida />
+		<WhatsAppFlotante />
 	</body>
 </html>
 
