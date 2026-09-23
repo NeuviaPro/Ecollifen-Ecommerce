@@ -3,6 +3,11 @@
 // no usa claves secretas, identifica el carrito del visitante con un Cart-Token.
 import { atom } from 'nanostores';
 
+export type CartVariationDetail = {
+    attribute: string;
+    value: string;
+};
+
 export type CartItem = {
     key: string;        // identificador de la línea (para quitar/actualizar)
     id: number;         // id del producto
@@ -10,6 +15,7 @@ export type CartItem = {
     quantity: number;
     lineTotal: number;  // total de la línea, en pesos (unidad mayor)
     image: string | null;
+    variation?: CartVariationDetail[];
 };
 
 export type Cart = {
@@ -98,16 +104,33 @@ function toMajor(value: string, minor: number): number {
     return Number(value) / 10 ** minor;
 }
 
+function decodeHTML(str: string): string {
+    return (str || '')
+        .replace(/&#8243;/g, '″')
+        .replace(/&#8211;/g, '–')
+        .replace(/&#215;/g, '×')
+        .replace(/&quot;/g, '"')
+        .replace(/&amp;/g, '&')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>');
+}
+
 // Normaliza la respuesta cruda de la Store API a nuestro tipo Cart.
 function normaliza(raw: any): Cart {
     const minor: number = raw?.totals?.currency_minor_unit ?? 0;
     const items: CartItem[] = (raw?.items ?? []).map((i: any) => ({
         key: i.key,
         id: i.id,
-        name: i.name,
+        name: decodeHTML(i.name || ''),
         quantity: i.quantity,
         lineTotal: toMajor(i.totals?.line_total ?? '0', minor),
         image: i.images?.[0]?.thumbnail ?? i.images?.[0]?.src ?? null,
+        variation: Array.isArray(i.variation)
+            ? i.variation.map((v: any) => ({
+                attribute: decodeHTML(v.attribute || ''),
+                value: decodeHTML(v.value || ''),
+            }))
+            : [],
     }));
     return {
         items,

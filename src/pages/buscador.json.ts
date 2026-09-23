@@ -8,7 +8,7 @@
 // buscador recién tras el siguiente `npm run deploy`, igual que el resto del
 // contenido estático del sitio.
 import type { APIRoute } from 'astro';
-import { getCatalogoCompleto } from '@/lib/api';
+import { getCatalogoCompleto, getWooProductVariations } from '@/lib/api';
 import type { WooProduct } from '@/lib/api';
 import { normaliza, type ItemIndice } from '@/lib/buscador';
 
@@ -28,30 +28,51 @@ export const GET: APIRoute = async () => {
         console.error('[buscador] No se pudo generar el índice:', error);
     }
 
-    const indice: ItemIndice[] = productos.map((producto) => {
-        const categoria = producto.categories?.[0];
+    const indice: ItemIndice[] = await Promise.all(
+        productos.map(async (producto) => {
+            const categoria = producto.categories?.[0];
+            const esVariable = producto.type === 'variable';
 
-        // Todo lo que sirve para encontrar el producto, en un solo campo ya
-        // normalizado: el navegador solo compara, no procesa.
-        const palabras = [
-            producto.name,
-            producto.sku ?? '',
-            ...(producto.categories ?? []).map((c) => c.name),
-            ...(producto.tags ?? []).map((t) => t.name),
-            sinHtml(producto.short_description ?? ''),
-        ];
+            // Atributos y opciones de variaciones (ej: "Medidas y Gramaje", "4 x 10 m (160 g/m²)")
+            const atributosYValores = (producto.attributes ?? [])
+                .flatMap((a) => [a.name, ...(a.options ?? [])]);
 
-        return {
-            id: producto.id,
-            nombre: producto.name,
-            categoria: categoria?.name ?? '',
-            categoriaSlug: categoria?.slug ?? '',
-            precio: producto.price,
-            imagen: producto.images?.[0]?.src ?? null,
-            stock: producto.stock_status,
-            texto: normaliza(palabras.filter(Boolean).join(' ')),
-        };
-    });
+            // SKUs específicos de las variantes si es producto variable
+            let skusVariantes: string[] = [];
+            if (esVariable) {
+                try {
+                    const variantes = await getWooProductVariations(producto.id);
+                    skusVariantes = variantes.map((v) => v.sku).filter(Boolean);
+                } catch {
+                    // Si falla el fetch de variantes, continuamos con los atributos disponibles
+                }
+            }
+
+            // Todo lo que sirve para encontrar el producto, en un solo campo ya
+            // normalizado: el navegador solo compara, no procesa.
+            const palabras = [
+                producto.name,
+                producto.sku ?? '',
+                ...skusVariantes,
+                ...atributosYValores,
+                ...(producto.categories ?? []).map((c) => c.name),
+                ...(producto.tags ?? []).map((t) => t.name),
+                sinHtml(producto.short_description ?? ''),
+            ];
+
+            return {
+                id: producto.id,
+                nombre: producto.name,
+                categoria: categoria?.name ?? '',
+                categoriaSlug: categoria?.slug ?? '',
+                precio: producto.price,
+                esVariable,
+                imagen: producto.images?.[0]?.src ?? null,
+                stock: producto.stock_status,
+                texto: normaliza(palabras.filter(Boolean).join(' ')),
+            };
+        })
+    );
 
     return new Response(JSON.stringify(indice), {
         headers: {

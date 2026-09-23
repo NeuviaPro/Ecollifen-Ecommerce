@@ -2,23 +2,20 @@
 // Tarjeta de producto reutilizable (home + catálogo). Recibe un WooProduct.
 // Sigue el rediseño de Claude Design: imagen 1:1 con aire blanco, insignia de
 // categoría, botón de "Vista rápida" que aparece al pasar el mouse (abre el
-// modal manejado por Catalogo.astro), precio en cifras tabulares y "Cotizar"
+// modal manejado por Layout / VistaRapida), precio en cifras tabulares y "Cotizar"
 // como acción secundaria — sin stock no hay compra directa.
+// Para productos variables, muestra "Desde $X" y botón "Ver opciones".
 import type { WooProduct } from '@/lib/api';
+import { formatoMonedaCLP } from '@/lib/variantes';
 
 interface Props {
-    product: WooProduct,
-    category?: string,   // etiqueta opcional sobre la imagen (ej. "Agricultura")
+    product: WooProduct;
+    category?: string;   // etiqueta opcional sobre la imagen (ej. "Agricultura")
 }
 
 const { product, category } = Astro.props;
-const image = product.images[0];
-
-const money = new Intl.NumberFormat('es-CL', {
-    style: 'currency',
-    currency: 'CLP',
-    maximumFractionDigits: 0,
-});
+const image = product.images?.[0];
+const esVariable = product.type === 'variable';
 
 // Mapa de estado de stock → etiqueta + color.
 const estados: Record<string, { label: string, color: string }> = {
@@ -32,6 +29,10 @@ const enStock = product.stock_status === 'instock';
 // Raíz Viva es la marca propia — su insignia va en rol Tierra, no en el verde
 // genérico de categoría, para que se distinga en el mismo vistazo.
 const esRaizViva = product.categories?.some((c) => c.slug === 'raiz-viva') ?? false;
+
+// Conteo de opciones si es variable
+const totalOpciones = (product.attributes ?? [])
+    .find((a) => a.variation && a.options?.length)?.options?.length ?? 0;
 
 // Texto plano de la descripción corta, para la vista rápida. Se guarda en un
 // atributo de datos: así el modal no necesita otra petición para mostrarla.
@@ -47,11 +48,13 @@ const descripcionPlana = (product.short_description || '')
     data-id={product.id}
     data-price={product.price}
     data-stock={product.stock_status}
+    data-type={product.type}
     data-name={product.name}
     data-sku={product.sku}
     data-desc={descripcionPlana}
     data-cat={category}
     data-img={image?.src}
+    data-options-count={totalOpciones > 1 ? totalOpciones : undefined}
 >
     {/* Ventana blanca cuadrada: el 90% de las fotos de Woo trae fondo blanco y
         el 80% viene en 1:1, así que con este marco la imagen se funde con la
@@ -97,8 +100,14 @@ const descripcionPlana = (product.short_description || '')
 
     <div class="flex flex-1 flex-col gap-2.5 p-4">
         <div class="flex items-center justify-between font-mono text-[11px]">
-            <span class="text-muted">{product.sku ? `SKU · ${product.sku}` : ''}</span>
-            <span data-estado class:list={["flex items-center gap-1.5 font-medium", estado.color]}>&#9679; {estado.label}</span>
+            <span class="text-muted">
+                {esVariable && totalOpciones > 1
+                    ? `${totalOpciones} opciones`
+                    : (product.sku ? `SKU · ${product.sku}` : '')}
+            </span>
+            <span data-estado class:list={["flex items-center gap-1.5 font-medium", estado.color]}>
+                &#9679; {estado.label}
+            </span>
         </div>
 
         {/* La altura mínima reserva dos líneas: mantiene alineados los precios de toda la fila */}
@@ -106,29 +115,62 @@ const descripcionPlana = (product.short_description || '')
             {product.name}
         </h3>
 
-        <p data-precio class="text-[22px] leading-none font-bold tracking-tight text-green-700 tabular-nums">
-            {money.format(Number(product.price))}
-        </p>
+        <div class="flex items-baseline gap-1.5">
+            {esVariable && (
+                <span class="font-mono text-xs text-muted">Desde</span>
+            )}
+            <p data-precio class="text-[22px] leading-none font-bold tracking-tight text-green-700 tabular-nums">
+                {formatoMonedaCLP(product.price)}
+            </p>
+        </div>
 
         {/* Los dos botones se renderizan siempre y se alterna cuál está oculto:
-            así el script de precio/stock en vivo no tiene que construir DOM. */}
+            así el script de precio/stock en vivo no tiene que construir DOM.
+            Para productos variables, la acción es "Ver opciones" que lleva a la ficha. */}
         <div class="mt-auto flex gap-2 pt-2">
-            <button
-                type="button"
-                data-add-to-cart={product.id}
-                data-btn-agregar
-                hidden={!enStock}
-                class="flex-1 rounded-lg bg-cta py-2.5 text-center font-semibold text-cta-contrast transition-colors hover:bg-green-600"
-            >Agregar</button>
-            <a
-                href="/contacto"
-                data-btn-cotizar
-                hidden={enStock}
-                class="flex-1 rounded-lg border-[1.5px] border-border py-2.5 text-center font-semibold text-green-700 transition-colors hover:bg-surface-alt"
-            >Cotizar</a>
+            {esVariable ? (
+                <Fragment>
+                    <a
+                        href={`/producto/${product.id}`}
+                        data-btn-agregar
+                        hidden={!enStock}
+                        class="flex-1 rounded-lg bg-cta py-2.5 text-center font-semibold text-cta-contrast transition-colors hover:bg-green-600"
+                    >
+                        Ver opciones
+                    </a>
+                    <a
+                        href="/contacto"
+                        data-btn-cotizar
+                        hidden={enStock}
+                        class="flex-1 rounded-lg border-[1.5px] border-border py-2.5 text-center font-semibold text-green-700 transition-colors hover:bg-surface-alt"
+                    >
+                        Cotizar
+                    </a>
+                </Fragment>
+            ) : (
+                <Fragment>
+                    <button
+                        type="button"
+                        data-add-to-cart={product.id}
+                        data-btn-agregar
+                        hidden={!enStock}
+                        class="flex-1 cursor-pointer rounded-lg bg-cta py-2.5 text-center font-semibold text-cta-contrast transition-colors hover:bg-green-600"
+                    >
+                        Agregar
+                    </button>
+                    <a
+                        href="/contacto"
+                        data-btn-cotizar
+                        hidden={enStock}
+                        class="flex-1 rounded-lg border-[1.5px] border-border py-2.5 text-center font-semibold text-green-700 transition-colors hover:bg-surface-alt"
+                    >
+                        Cotizar
+                    </a>
+                </Fragment>
+            )}
             <a
                 href={`/producto/${product.id}`}
-                aria-label="Ver detalle del producto"
+                aria-label={`Ver detalle de ${product.name}`}
                 title="Ver detalle"
                 class="flex w-11 items-center justify-center rounded-lg border border-border text-muted transition-colors hover:bg-surface-alt hover:text-primary"
             >

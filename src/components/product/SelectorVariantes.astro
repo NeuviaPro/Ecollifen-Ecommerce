@@ -1,0 +1,271 @@
+---
+// Selector interactivo y adaptativo de variantes de producto (SoC / SOLID).
+// Diseñado con los tokens oficiales de Ecollifén:
+// - Opciones <= 6: Botones / chips segmentados con feedback visual.
+// - Opciones > 6: Menú desplegable estilizado con tipografía mono y focus verde.
+
+import type { WooProduct, WooVariation } from '@/lib/api';
+import { obtenerAtributosDeVariacion, coincidenOpciones } from '@/lib/variantes';
+
+interface Props {
+    producto: WooProduct;
+    variantes: WooVariation[];
+    varianteInicial?: WooVariation;
+}
+
+const { producto, variantes, varianteInicial } = Astro.props;
+const atributos = obtenerAtributosDeVariacion(producto);
+
+// Mapeo inicial de opciones elegidas para cada atributo
+const seleccionInicial: Record<string, string> = {};
+for (const attr of atributos) {
+    const opcionVar = varianteInicial?.attributes?.find(
+        (a) => a.name.toLowerCase() === attr.name.toLowerCase()
+    )?.option;
+    // Buscar la opción humana exacta en attr.options mediante coincidenOpciones
+    const opcionCoincidente = attr.options.find((opt) =>
+        opcionVar ? coincidenOpciones(opt, opcionVar) : false
+    );
+    seleccionInicial[attr.name] = opcionCoincidente || attr.options[0] || '';
+}
+
+// Payload mínimo y seguro para la reactividad en el cliente (evita inflar el DOM)
+const variantesCompactas = variantes.map((v) => ({
+    id: v.id,
+    sku: v.sku,
+    price: v.price,
+    regular_price: v.regular_price,
+    sale_price: v.sale_price,
+    on_sale: v.on_sale,
+    stock_status: v.stock_status,
+    attributes: v.attributes.map((a) => ({ name: a.name, option: a.option })),
+    image: v.image?.src ? { src: v.image.src, alt: v.image.alt || '' } : undefined,
+    images: (v.images || (v.image?.src ? [v.image] : [])).map((img) => ({
+        src: img.src,
+        alt: img.alt || '',
+    })),
+    weight: v.weight,
+    dimensions: v.dimensions,
+}));
+---
+
+{atributos.length > 0 && variantes.length > 0 && (
+    <div
+        data-selector-variantes
+        data-producto-id={producto.id}
+        data-producto-nombre={producto.name}
+        class="flex flex-col gap-4.5 rounded-xl border border-border/80 bg-surface/60 p-4 transition-colors"
+    >
+        {/* Script embebido con el catálogo de variantes para lookup instantáneo */}
+        <script
+            is:inline
+            type="application/json"
+            data-variantes-json
+            set:html={JSON.stringify(variantesCompactas)}
+        />
+
+        {atributos.map((attr) => {
+            const esExtenso = attr.options.length > 6;
+            const elegida = seleccionInicial[attr.name];
+
+            return (
+                <div class="flex flex-col gap-2" data-grupo-atributo={attr.name}>
+                    <div class="flex items-center justify-between text-xs">
+                        <span class="font-mono tracking-[0.12em] text-muted uppercase">
+                            {attr.name}
+                        </span>
+                        <span
+                            data-label-seleccion={attr.name}
+                            class="font-mono text-[11px] font-semibold text-primary"
+                        >
+                            {elegida}
+                        </span>
+                    </div>
+
+                    {esExtenso ? (
+                        /* Selector desplegable estilizado para atributos con muchas opciones (ej. 13 medidas) */
+                        <div class="relative">
+                            <select
+                                data-select-opcion
+                                data-attr-name={attr.name}
+                                aria-label={`Seleccionar ${attr.name}`}
+                                class="w-full cursor-pointer appearance-none rounded-lg border border-border bg-white px-3.5 py-2.5 pr-10 font-mono text-xs font-medium text-foreground transition-all hover:border-green-300 focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/20"
+                            >
+                                {attr.options.map((opt) => {
+                                    const activa = coincidenOpciones(opt, elegida);
+                                    const vOpt = variantes.find((v) =>
+                                        v.attributes.some(
+                                            (a) => a.name === attr.name && (coincidenOpciones(a.option, opt) || !a.option)
+                                        )
+                                    );
+                                    const sinStock = vOpt?.stock_status === 'outofstock';
+                                    return (
+                                        <option value={opt} selected={activa}>
+                                            {opt}{sinStock ? ' (Sin stock)' : ''}
+                                        </option>
+                                    );
+                                })}
+                            </select>
+                            <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-muted">
+                                <svg class="size-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                    <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd" />
+                                </svg>
+                            </div>
+                        </div>
+                    ) : (
+                        /* Pills / Chips interactivos para atributos con hasta 6 opciones */
+                        <div class="flex flex-wrap gap-2" role="radiogroup" aria-label={attr.name}>
+                            {attr.options.map((opt) => {
+                                const activa = coincidenOpciones(opt, elegida);
+                                const vOpt = variantes.find((v) =>
+                                    v.attributes.some(
+                                        (a) => a.name === attr.name && (coincidenOpciones(a.option, opt) || !a.option)
+                                    )
+                                );
+                                const sinStock = vOpt?.stock_status === 'outofstock';
+
+                                return (
+                                    <button
+                                        type="button"
+                                        role="radio"
+                                        aria-checked={activa ? "true" : "false"}
+                                        data-btn-opcion
+                                        data-attr-name={attr.name}
+                                        data-attr-val={opt}
+                                        class:list={[
+                                            "relative cursor-pointer rounded-lg border px-3.5 py-2 font-mono text-xs font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-ring/30",
+                                            activa
+                                                ? "border-cta bg-green-50 text-primary font-semibold ring-1 ring-cta shadow-xs"
+                                                : "border-border bg-white text-foreground hover:border-green-300 hover:bg-surface-alt",
+                                            sinStock && !activa ? "opacity-60" : ""
+                                        ]}
+                                    >
+                                        {opt}
+                                        {sinStock && <span class="sr-only"> (sin stock)</span>}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    )}
+                </div>
+            );
+        })}
+    </div>
+)}
+
+<script>
+    import { buscarVariantePorOpciones } from '@/lib/variantes';
+    import type { WooVariation } from '@/lib/api';
+
+    function initSelectorVariantes() {
+        const contenedores = document.querySelectorAll<HTMLElement>('[data-selector-variantes]');
+
+        contenedores.forEach((contenedor) => {
+            const dataScript = contenedor.querySelector<HTMLScriptElement>('[data-variantes-json]');
+            if (!dataScript || !dataScript.textContent) return;
+
+            let variantes: WooVariation[] = [];
+            try {
+                variantes = JSON.parse(dataScript.textContent);
+            } catch (err) {
+                console.error('[variantes] Error al parsear JSON:', err);
+                return;
+            }
+
+            const productoId = Number(contenedor.dataset.productoId);
+            const productoNombre = contenedor.dataset.productoNombre || '';
+
+            // Estado actual de selecciones
+            const seleccionActual: Record<string, string> = {};
+
+            // Inicializar estado desde el DOM actual
+            contenedor.querySelectorAll<HTMLElement>('[data-grupo-atributo]').forEach((grupo) => {
+                const nombre = grupo.dataset.grupoAtributo;
+                if (!nombre) return;
+
+                const select = grupo.querySelector<HTMLSelectElement>('[data-select-opcion]');
+                if (select) {
+                    seleccionActual[nombre] = select.value;
+                } else {
+                    const btnActivo = grupo.querySelector<HTMLButtonElement>('[data-btn-opcion][aria-checked="true"]');
+                    if (btnActivo?.dataset.attrVal) {
+                        seleccionActual[nombre] = btnActivo.dataset.attrVal;
+                    }
+                }
+            });
+
+            // Disparador de cambio de variante
+            const notificarCambio = () => {
+                const variante = buscarVariantePorOpciones(variantes, seleccionActual);
+                if (!variante) return;
+
+                // Evento personalizado con burbujeo para que el contenedor superior reaccione
+                const evento = new CustomEvent('ecollifen:variante-seleccionada', {
+                    bubbles: true,
+                    composed: true,
+                    detail: {
+                        variante,
+                        productoId,
+                        nombreProducto: productoNombre,
+                    },
+                });
+                contenedor.dispatchEvent(evento);
+            };
+
+            // Escuchar clics en botones/pills
+            contenedor.querySelectorAll<HTMLButtonElement>('[data-btn-opcion]').forEach((btn) => {
+                btn.addEventListener('click', () => {
+                    const attrName = btn.dataset.attrName;
+                    const attrVal = btn.dataset.attrVal;
+                    if (!attrName || !attrVal) return;
+
+                    seleccionActual[attrName] = attrVal;
+
+                    // Actualizar estilos de los botones del mismo grupo
+                    const grupo = btn.closest('[data-grupo-atributo]');
+                    if (grupo) {
+                        grupo.querySelectorAll<HTMLButtonElement>('[data-btn-opcion]').forEach((b) => {
+                            const esElClickeado = b === btn;
+                            b.setAttribute('aria-checked', esElClickeado ? 'true' : 'false');
+                            b.classList.toggle('border-cta', esElClickeado);
+                            b.classList.toggle('bg-green-50', esElClickeado);
+                            b.classList.toggle('text-primary', esElClickeado);
+                            b.classList.toggle('ring-1', esElClickeado);
+                            b.classList.toggle('ring-cta', esElClickeado);
+                            b.classList.toggle('font-semibold', esElClickeado);
+                            b.classList.toggle('shadow-xs', esElClickeado);
+                            b.classList.toggle('border-border', !esElClickeado);
+                            b.classList.toggle('bg-white', !esElClickeado);
+                            b.classList.toggle('text-foreground', !esElClickeado);
+                        });
+
+                        const label = grupo.querySelector('[data-label-seleccion]');
+                        if (label) label.textContent = attrVal;
+                    }
+
+                    notificarCambio();
+                });
+            });
+
+            // Escuchar cambios en desplegables select
+            contenedor.querySelectorAll<HTMLSelectElement>('[data-select-opcion]').forEach((sel) => {
+                sel.addEventListener('change', () => {
+                    const attrName = sel.dataset.attrName;
+                    if (!attrName) return;
+
+                    seleccionActual[attrName] = sel.value;
+
+                    const grupo = sel.closest('[data-grupo-atributo]');
+                    if (grupo) {
+                        const label = grupo.querySelector('[data-label-seleccion]');
+                        if (label) label.textContent = sel.value;
+                    }
+
+                    notificarCambio();
+                });
+            });
+        });
+    }
+
+    document.addEventListener('astro:page-load', initSelectorVariantes);
+</script>

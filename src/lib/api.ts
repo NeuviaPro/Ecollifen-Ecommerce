@@ -131,10 +131,30 @@ export async function getHeroSlides(): Promise<HeroSlide[]> {
 
 // --- WooCommerce: productos ---
 
+export interface WooVariation {
+    id: number;
+    parent_id: number;
+    name?: string;
+    sku: string;
+    price: string;          // precio vigente, texto plano, ej "831200"
+    regular_price: string;
+    sale_price: string;
+    on_sale: boolean;
+    stock_status: string;   // "instock" | "onbackorder" | "outofstock"
+    attributes: { id: number, name: string, option: string, slug?: string }[];
+    image?: { id?: number, src: string, alt: string };
+    gallery_image_ids?: number[];
+    gallery_images?: { id?: number, src: string, alt: string }[];
+    images?: { id?: number, src: string, alt: string }[]; // galería combinada [image, ...gallery_images]
+    weight?: string;
+    dimensions?: { length: string, width: string, height: string };
+}
+
 export interface WooProduct {
     id: number;
     name: string;
-    price: string;          // precio vigente, texto plano, ej "589990"
+    type?: 'simple' | 'variable' | 'grouped' | 'external' | string;
+    price: string;          // precio vigente, texto plano, ej "589990" (en variables: precio mínimo)
     regular_price: string;
     sale_price: string;
     on_sale: boolean;
@@ -144,12 +164,17 @@ export interface WooProduct {
     description: string;        // HTML (descripción completa)
     images: { src: string, alt: string }[];
     categories: { id: number, name: string, slug: string }[];
+    // Variantes (WooCommerce):
+    variations?: number[];             // IDs que entrega el objeto padre de Woo
+    variations_data?: WooVariation[];  // Variantes completas resueltas en la ficha
+    default_attributes?: { id: number, name: string, option: string }[];
+    price_html?: string;
     // Datos para la ficha técnica. Hoy los productos no traen atributos
     // cargados en Woo, por eso son opcionales: la tabla se muestra solo si hay.
     // Etiquetas de producto: hoy ningún producto tiene, pero el índice del
     // buscador ya las usa — en cuanto se carguen en Woo, mejora sin tocar código.
     tags?: { id: number, name: string, slug: string }[];
-    attributes?: { name: string, options: string[], visible: boolean }[];
+    attributes?: { name: string, options: string[], visible: boolean, variation?: boolean }[];
     weight?: string;
     dimensions?: { length: string, width: string, height: string };
 }
@@ -225,6 +250,86 @@ let catalogoCache: Promise<WooProduct[]> | null = null;
 export function getCatalogoCompleto(): Promise<WooProduct[]> {
     if (!catalogoCache) catalogoCache = getAllWooProducts();
     return catalogoCache;
+}
+
+// Memoización en memoria para las variantes:
+// Cada producto variable tiene sus variantes cacheadas para que múltiples
+// llamadas durante el build no repitan peticiones HTTP a WordPress.
+const variantesCache = new Map<number, Promise<WooVariation[]>>();
+
+export function getWooProductVariations(productId: number): Promise<WooVariation[]> {
+    const enCache = variantesCache.get(productId);
+    if (enCache) return enCache;
+
+    const params = wooAuth();
+    params.set("per_page", String(WOO_MAX_PER_PAGE));
+
+    const promesa = wooGetAll<WooVariation>(
+        `/wc/v3/products/${productId}/variations`,
+        params,
+        `las variantes del producto ${productId}`
+    ).then(async (variantes) => {
+        // Recolectar todos los gallery_image_ids únicos de las variantes
+        const mediaIds = [...new Set(variantes.flatMap((v) => v.gallery_image_ids || []))];
+
+        const mediaMap = new Map<number, { id: number; src: string; alt: string }>();
+
+        if (mediaIds.length > 0) {
+            try {
+                // Consultar en lote los medios de WordPress
+                const res = await fetchConReintentos(
+                    `${apiBase()}/wp/v2/media?include=${mediaIds.join(",")}&per_page=100`,
+                    `los medios de las variantes del producto ${productId}`
+                );
+                const items = (await res.json()) as Array<{
+                    id: number;
+                    source_url?: string;
+                    guid?: { rendered?: string };
+                    alt_text?: string;
+                    title?: { rendered?: string };
+                }>;
+
+                for (const item of items) {
+                    const src = item.source_url || item.guid?.rendered || "";
+                    if (src) {
+                        mediaMap.set(item.id, {
+                            id: item.id,
+                            src,
+                            alt: item.alt_text || item.title?.rendered || "",
+                        });
+                    }
+                }
+            } catch (err) {
+                console.warn(`[api] No se pudieron cargar medios para variantes de ${productId}:`, err);
+            }
+        }
+
+        // Asignar galería resuelta a cada variante
+        return variantes.map((v) => {
+            const galeriaResuelta = (v.gallery_image_ids || [])
+                .map((id) => mediaMap.get(id))
+                .filter((img): img is { id: number; src: string; alt: string } => Boolean(img?.src));
+
+            const imagenesUnificadas: { id?: number; src: string; alt: string }[] = [];
+            if (v.image?.src) {
+                imagenesUnificadas.push(v.image);
+            }
+            for (const img of galeriaResuelta) {
+                if (!imagenesUnificadas.some((existente) => existente.src === img.src)) {
+                    imagenesUnificadas.push(img);
+                }
+            }
+
+            return {
+                ...v,
+                gallery_images: galeriaResuelta,
+                images: imagenesUnificadas,
+            };
+        });
+    });
+
+    variantesCache.set(productId, promesa);
+    return promesa;
 }
 
 // Productos para el carrusel de la home. Manda lo que el cliente marque como

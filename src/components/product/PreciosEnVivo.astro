@@ -46,11 +46,11 @@
         }
 
         // El botón de compra sigue al stock: sin stock, se ofrece cotizar.
-        const agregar = nodo.querySelector('[data-btn-agregar]');
+        const elementosAgregar = nodo.querySelectorAll('[data-btn-agregar]');
         const cotizar = nodo.querySelector('[data-btn-cotizar]');
-        if (agregar && cotizar) {
+        if (elementosAgregar.length > 0 && cotizar) {
             const disponible = estado === 'instock';
-            agregar.toggleAttribute('hidden', !disponible);
+            elementosAgregar.forEach((el) => el.toggleAttribute('hidden', !disponible));
             cotizar.toggleAttribute('hidden', disponible);
         }
     }

@@ -1,10 +1,16 @@
 ---
 import Layout from '@/layouts/Layout.astro';
 import ProductCard from '@/components/product/ProductCard.astro';
-import { getCatalogoCompleto, getAllWooCategories } from '@/lib/api';
-import type { WooProduct } from '@/lib/api';
+import SelectorVariantes from '@/components/product/SelectorVariantes.astro';
+import { getCatalogoCompleto, getAllWooCategories, getWooProductVariations } from '@/lib/api';
+import type { WooProduct, WooVariation } from '@/lib/api';
 import { asesoriaHref, hayWhatsApp } from '@/lib/contacto';
 import { sanearContenidoWP } from '@/lib/contenido-wp';
+import {
+    formatoMonedaCLP,
+    calcularDescuento,
+    encontrarVarianteInicial,
+} from '@/lib/variantes';
 
 // Una página estática por producto de WooCommerce.
 export async function getStaticPaths() {
@@ -70,10 +76,21 @@ export async function getStaticPaths() {
         const urls = [...new Set([...descripcion.rotos, ...resumen.rotos])];
         if (urls.length > 0) conEnlacesRotos.push({ nombre: product.name, urls });
 
+        // Si es producto variable, cargamos sus variantes de manera memoizada
+        let variantes: WooVariation[] = [];
+        if (product.type === 'variable' && product.variations && product.variations.length > 0) {
+            try {
+                variantes = await getWooProductVariations(product.id);
+            } catch (err) {
+                console.error(`[producto ${product.id}] No se pudieron cargar variantes:`, err);
+            }
+        }
+
         return {
             params: { id: String(product.id) },
             props: {
                 product,
+                variantes,
                 relacionados: relacionadosDe(product),
                 descripcionHTML: descripcion.html,
                 resumenHTML: resumen.html,
@@ -97,34 +114,45 @@ export async function getStaticPaths() {
     return rutas;
 }
 
-const { product, relacionados, descripcionHTML, resumenHTML } = Astro.props as {
-    product: WooProduct,
-    relacionados: WooProduct[],
-    descripcionHTML: string,
-    resumenHTML: string,
+const { product, variantes = [], relacionados, descripcionHTML, resumenHTML } = Astro.props as {
+    product: WooProduct;
+    variantes?: WooVariation[];
+    relacionados: WooProduct[];
+    descripcionHTML: string;
+    resumenHTML: string;
 };
 
-const money = new Intl.NumberFormat('es-CL', {
-    style: 'currency',
-    currency: 'CLP',
-    maximumFractionDigits: 0,
-});
+const esVariable = product.type === 'variable' && variantes.length > 0;
+const varianteInicial = esVariable
+    ? encontrarVarianteInicial(variantes, product.default_attributes)
+    : undefined;
 
 const estados: Record<string, { label: string, chip: string }> = {
     instock:     { label: 'En stock',    chip: 'border-green-200 bg-green-50 text-green-700' },
     onbackorder: { label: 'Bajo pedido', chip: 'border-gold-200 bg-gold-50 text-gold-700' },
     outofstock:  { label: 'Sin stock',   chip: 'border-border bg-surface-alt text-muted' },
 };
-const estado = estados[product.stock_status] ?? estados.outofstock;
-const enStock = product.stock_status === 'instock';
-const categoria = product.categories?.[0];
-const mainImage = product.images?.[0];
 
-// Descuento real: solo si Woo trae un precio normal mayor que el vigente.
-const precioActual = Number(product.price);
-const precioNormal = Number(product.regular_price);
-const hayDescuento = product.on_sale && precioNormal > precioActual && precioActual > 0;
-const porcentaje = hayDescuento ? Math.round((1 - precioActual / precioNormal) * 100) : 0;
+// Si hay variante inicial, preseleccionamos sus datos en el HTML servido (SSG)
+const precioActual = Number(varianteInicial?.price || product.price);
+const precioNormal = Number(varianteInicial?.regular_price || product.regular_price || 0);
+const { hayDescuento, porcentaje } = calcularDescuento(precioActual, precioNormal);
+
+const estadoKey = varianteInicial?.stock_status || product.stock_status;
+const estado = estados[estadoKey] ?? estados.outofstock;
+const enStock = estadoKey === 'instock';
+
+const skuActual = varianteInicial?.sku || product.sku;
+const categoria = product.categories?.[0];
+
+// Galería de imágenes inicial: si la variante inicial tiene fotos propias o galería, las usamos;
+// de lo contrario, usamos las imágenes generales del producto.
+const imagenesIniciales = (esVariable && varianteInicial?.images && varianteInicial.images.length > 0)
+    ? varianteInicial.images
+    : (product.images || []);
+
+const mainImage = imagenesIniciales[0] || product.images?.[0];
+const initialAddToCartId = varianteInicial?.id || product.id;
 
 // Ficha técnica: se arma con los atributos visibles del producto en Woo, más
 // peso y dimensiones si están cargados. Hoy la mayoría no tiene atributos, así
@@ -136,16 +164,17 @@ const especificaciones: { k: string, v: string }[] = [
         .map((a) => ({ k: a.name, v: a.options.join(', ') })),
 ];
 
-if (product.weight) {
-    especificaciones.push({ k: 'Peso', v: `${product.weight} kg` });
+const pesoActual = varianteInicial?.weight || product.weight;
+if (pesoActual) {
+    especificaciones.push({ k: 'Peso', v: `${pesoActual} kg` });
 }
 
-const d = product.dimensions;
+const d = (varianteInicial?.dimensions?.length && varianteInicial.dimensions) || product.dimensions;
 if (d?.length && d?.width && d?.height) {
     especificaciones.push({ k: 'Dimensiones', v: `${d.length} × ${d.width} × ${d.height} cm` });
 }
 
-if (product.sku) especificaciones.push({ k: 'SKU', v: product.sku });
+if (skuActual) especificaciones.push({ k: 'SKU', v: skuActual });
 if (categoria) especificaciones.push({ k: 'Categoría', v: categoria.name });
 
 // Respaldos que ya son promesa declarada del negocio en todo el sitio (la tira
@@ -160,8 +189,13 @@ const respaldos = [
 
 // Consulta con el producto ya escrito: quien pregunta no tiene que explicar
 // cuál es, y quien responde sabe de entrada de qué se trata.
+const nombreParaConsulta = varianteInicial?.attributes?.length
+    ? `${product.name} - ${varianteInicial.attributes.map((a) => a.option).filter(Boolean).join(', ')}`
+    : product.name;
+
+const urlProducto = Astro.site ? new URL(Astro.url.pathname, Astro.site).href : Astro.url.href;
 const consultaHref = asesoriaHref(
-    `Hola, quiero asesoría por el producto "${product.name}"${product.sku ? ` (SKU ${product.sku})` : ''}.`,
+    `Hola, quiero asesoría por el producto "${nombreParaConsulta}"${skuActual ? ` (SKU ${skuActual})` : ''}: ${urlProducto}`,
 );
 
 // Estilos base para el HTML que viene de WordPress (sin plugin de tipografía).
@@ -174,7 +208,7 @@ const descripcionOG = (resumenHTML || descripcionHTML || '')
     .replace(/&[a-z]+;|&#\d+;/gi, ' ')
     .replace(/\s+/g, ' ')
     .trim()
-    .slice(0, 160) || `${money.format(precioActual)} · ${estado.label}. Cotiza con asesoría técnica en Ecollifén.`;
+    .slice(0, 160) || `${formatoMonedaCLP(precioActual)} · ${estado.label}. Cotiza con asesoría técnica en Ecollifén.`;
 ---
 
 <Layout title={product.name} description={descripcionOG} image={mainImage?.src} type="product">
@@ -195,11 +229,13 @@ const descripcionOG = (resumenHTML || descripcionHTML || '')
                     {/* Mismo criterio que las tarjetas: fondo blanco para que las
                         fotos de catálogo (90% con fondo blanco) no se vean pegadas. */}
                     <div class="relative aspect-square overflow-hidden rounded-2xl border border-border bg-white p-6">
-                        {hayDescuento && (
-                            <span class="absolute top-4 left-4 z-10 rounded-md bg-cta px-2.5 py-1.5 font-mono text-[11px] font-semibold text-cta-contrast">
-                                −{porcentaje}%
-                            </span>
-                        )}
+                        <span
+                            data-descuento-badge
+                            hidden={!hayDescuento}
+                            class="absolute top-4 left-4 z-10 rounded-md bg-cta px-2.5 py-1.5 font-mono text-[11px] font-semibold text-cta-contrast"
+                        >
+                            −{porcentaje}%
+                        </span>
                         {mainImage ? (
                             <img
                                 data-main-image
@@ -212,32 +248,39 @@ const descripcionOG = (resumenHTML || descripcionHTML || '')
                         )}
                     </div>
 
-                    {product.images.length > 1 && (
-                        <div class="mt-3 flex flex-wrap gap-3">
-                            {product.images.map((img, i) => (
-                                <button
-                                    type="button"
-                                    data-thumb={img.src}
-                                    aria-label={`Ver imagen ${i + 1} de ${product.images.length}`}
-                                    class:list={[
-                                        "size-18 overflow-hidden rounded-lg border-[1.5px] bg-white p-1.5 transition-colors",
-                                        i === 0 ? "border-isotipo" : "border-border hover:border-green-300",
-                                    ]}
-                                >
-                                    <img src={img.src} alt="" class="h-full w-full object-contain" loading="lazy" />
-                                </button>
-                            ))}
-                        </div>
-                    )}
+                    {/* Galería de miniaturas (adaptable a las imágenes de la variante) */}
+                    <div
+                        data-galeria-miniaturas
+                        data-fotos-producto={JSON.stringify(product.images || [])}
+                        class="mt-3 flex flex-wrap gap-3"
+                        hidden={imagenesIniciales.length <= 1}
+                    >
+                        {imagenesIniciales.map((img, i) => (
+                            <button
+                                type="button"
+                                data-thumb={img.src}
+                                aria-label={`Ver imagen ${i + 1} de ${imagenesIniciales.length}`}
+                                class:list={[
+                                    "size-18 cursor-pointer overflow-hidden rounded-lg border-[1.5px] bg-white p-1.5 transition-colors",
+                                    img.src === mainImage?.src ? "border-isotipo" : "border-border hover:border-green-300",
+                                ]}
+                            >
+                                <img src={img.src} alt="" class="h-full w-full object-contain" loading="lazy" />
+                            </button>
+                        ))}
+                    </div>
                 </div>
 
                 {/* ---------- Panel de compra ----------
                     Los data-* de este contenedor los usa PreciosEnVivo para
-                    refrescar precio y stock contra la Store API al cargar. */}
+                    refrescar precio y stock contra la Store API al cargar.
+                    Si es variable, omitimos data-price para evitar que sobreescriba
+                    el precio específico de la variante seleccionada. */}
                 <div
+                    data-panel-compra
                     data-id={product.id}
-                    data-price={product.price}
-                    data-stock={product.stock_status}
+                    data-price={esVariable ? undefined : product.price}
+                    data-stock={esVariable ? undefined : product.stock_status}
                     data-anim="fade-left"
                     data-anim-delay="0.1"
                 >
@@ -255,22 +298,39 @@ const descripcionOG = (resumenHTML || descripcionHTML || '')
                             data-estado
                             class:list={["inline-flex items-center gap-1.5 rounded-full border px-3 py-1 font-mono text-[11px] font-medium", estado.chip]}
                         >&#9679; {estado.label}</span>
-                        {product.sku && (
-                            <span class="font-mono text-[11px] text-muted">SKU · {product.sku}</span>
-                        )}
+                        <span
+                            data-sku
+                            hidden={!skuActual}
+                            class="font-mono text-[11px] text-muted"
+                        >SKU · {skuActual}</span>
                     </div>
 
                     <div class="mt-6 flex flex-wrap items-baseline gap-3">
                         <span data-precio class="text-4xl leading-none font-bold tracking-tight text-green-700 tabular-nums">
-                            {money.format(precioActual)}
+                            {formatoMonedaCLP(precioActual)}
                         </span>
-                        {hayDescuento && (
-                            <span class="text-lg text-muted line-through tabular-nums">{money.format(precioNormal)}</span>
-                        )}
+                        <span
+                            data-precio-normal
+                            hidden={!hayDescuento}
+                            class="text-lg text-muted line-through tabular-nums"
+                        >
+                            {formatoMonedaCLP(precioNormal)}
+                        </span>
                     </div>
 
                     {resumenHTML && (
                         <div class:list={["mt-5 text-muted", contenidoWP]} set:html={resumenHTML} />
+                    )}
+
+                    {/* Selector adaptativo de variantes si el producto es variable */}
+                    {esVariable && (
+                        <div class="mt-6">
+                            <SelectorVariantes
+                                producto={product}
+                                variantes={variantes}
+                                varianteInicial={varianteInicial}
+                            />
+                        </div>
                     )}
 
                     {/* Cantidad + compra. El contenedor data-compra es lo que lee
@@ -279,7 +339,7 @@ const descripcionOG = (resumenHTML || descripcionHTML || '')
                         oculta juntos si el stock cambió desde el último build. */}
                     <div data-compra class="mt-7 flex flex-wrap items-stretch gap-3">
                         <div class="flex items-center rounded-lg border border-border bg-surface" hidden={!enStock} data-btn-agregar>
-                            <button type="button" data-cantidad-menos aria-label="Quitar una unidad" class="flex size-11 items-center justify-center text-lg text-muted transition-colors hover:text-primary">−</button>
+                            <button type="button" data-cantidad-menos aria-label="Quitar una unidad" class="flex size-11 cursor-pointer items-center justify-center text-lg text-muted transition-colors hover:text-primary">−</button>
                             <input
                                 type="number"
                                 data-cantidad
@@ -289,15 +349,15 @@ const descripcionOG = (resumenHTML || descripcionHTML || '')
                                 aria-label="Cantidad"
                                 class="w-12 border-0 bg-transparent text-center font-semibold text-foreground tabular-nums [appearance:textfield] focus:outline-none [&::-webkit-inner-spin-button]:appearance-none"
                             />
-                            <button type="button" data-cantidad-mas aria-label="Agregar una unidad" class="flex size-11 items-center justify-center text-lg text-muted transition-colors hover:text-primary">+</button>
+                            <button type="button" data-cantidad-mas aria-label="Agregar una unidad" class="flex size-11 cursor-pointer items-center justify-center text-lg text-muted transition-colors hover:text-primary">+</button>
                         </div>
 
                         <button
                             type="button"
-                            data-add-to-cart={product.id}
+                            data-add-to-cart={initialAddToCartId}
                             data-btn-agregar
                             hidden={!enStock}
-                            class="brillo-cta flex-1 rounded-lg bg-cta px-7 py-3.5 font-semibold text-cta-contrast transition-colors hover:bg-green-600"
+                            class="brillo-cta flex-1 cursor-pointer rounded-lg bg-cta px-7 py-3.5 font-semibold text-cta-contrast transition-colors hover:bg-green-600"
                         >
                             Agregar al carrito
                         </button>
@@ -314,6 +374,9 @@ const descripcionOG = (resumenHTML || descripcionHTML || '')
 
                     <a
                         href={consultaHref}
+                        data-btn-consulta
+                        data-whatsapp={import.meta.env.PUBLIC_WHATSAPP || ''}
+                        data-nombre-producto={product.name}
                         class="mt-3 flex items-center justify-center gap-2 rounded-lg border-[1.5px] border-border px-7 py-3.5 font-semibold text-primary transition-colors hover:bg-surface-alt"
                     >
                         <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.5a8.4 8.4 0 0 1-8.5 8.5 8.6 8.6 0 0 1-3.9-.9L3 21l1.9-5.6A8.5 8.5 0 1 1 21 11.5Z"/></svg>
@@ -364,7 +427,12 @@ const descripcionOG = (resumenHTML || descripcionHTML || '')
                                     {especificaciones.map((spec) => (
                                         <div class="flex items-baseline justify-between gap-6 py-2.5">
                                             <dt class="text-sm text-muted">{spec.k}</dt>
-                                            <dd class="text-right text-sm font-medium text-foreground">{spec.v}</dd>
+                                            <dd
+                                                class="text-right text-sm font-medium text-foreground"
+                                                data-spec-sku={spec.k === 'SKU' ? '' : undefined}
+                                            >
+                                                {spec.v}
+                                            </dd>
                                         </div>
                                     ))}
                                 </dl>
@@ -427,18 +495,20 @@ const descripcionOG = (resumenHTML || descripcionHTML || '')
 </style>
 
 <script>
-    // Galería y selector de cantidad. La transición de la imagen usa el helper
-    // del estándar de animación, no un tween suelto: si algún día cambia la
-    // curva del sitio, esto cambia con ella.
+    // Galería, selector de cantidad y sincronización reactiva de variantes.
     import { aparecer } from '@/lib/animaciones';
+    import { formatoMonedaCLP, calcularDescuento } from '@/lib/variantes';
+    import type { WooVariation } from '@/lib/api';
 
     function initFicha() {
         const main = document.querySelector<HTMLImageElement>('[data-main-image]');
-        const miniaturas = document.querySelectorAll<HTMLButtonElement>('[data-thumb]');
+        const galeria = document.querySelector<HTMLElement>('[data-galeria-miniaturas]');
 
-        if (main && miniaturas.length > 0) {
-            miniaturas.forEach((btn) => {
-                btn.addEventListener('click', () => {
+        function vincularMiniaturas() {
+            if (!main || !galeria) return;
+            const botones = galeria.querySelectorAll<HTMLButtonElement>('[data-thumb]');
+            botones.forEach((btn) => {
+                btn.onclick = () => {
                     const src = btn.dataset.thumb;
                     if (!src || main.src === src) return;
 
@@ -446,28 +516,188 @@ const descripcionOG = (resumenHTML || descripcionHTML || '')
                     aparecer(main, { y: 0, scale: 1.02, duration: 0.35 });
 
                     // Marca cuál se está viendo.
-                    miniaturas.forEach((b) => {
+                    botones.forEach((b) => {
                         b.classList.toggle('border-isotipo', b === btn);
                         b.classList.toggle('border-border', b !== btn);
                     });
-                });
+                };
             });
+        }
+
+        vincularMiniaturas();
+
+        // Precarga silenciosa en segundo plano de las imágenes de todas las variantes:
+        // Garantiza que cuando el usuario haga clic en cualquier opción, la imagen
+        // ya resida en la memoria caché del navegador para una transición instantánea y fluida.
+        const scriptVariantes = document.querySelector<HTMLScriptElement>('[data-variantes-json]');
+        if (scriptVariantes?.textContent) {
+            try {
+                const lista = JSON.parse(scriptVariantes.textContent);
+                const urls = new Set<string>();
+                lista.forEach((v: { images?: { src: string }[]; image?: { src: string } }) => {
+                    if (Array.isArray(v.images)) {
+                        v.images.forEach((img) => img?.src && urls.add(img.src));
+                    } else if (v.image?.src) {
+                        urls.add(v.image.src);
+                    }
+                });
+                urls.forEach((url) => {
+                    const img = new Image();
+                    img.src = url;
+                });
+            } catch {}
         }
 
         // Cantidad: los botones ± con el input como única fuente de verdad.
         const campo = document.querySelector<HTMLInputElement>('[data-cantidad]');
-        if (!campo) return;
+        if (campo) {
+            const mueve = (paso: number) => {
+                const actual = Number(campo.value) || 1;
+                campo.value = String(Math.min(99, Math.max(1, actual + paso)));
+            };
 
-        const mueve = (paso: number) => {
-            const actual = Number(campo.value) || 1;
-            campo.value = String(Math.min(99, Math.max(1, actual + paso)));
-        };
+            document.querySelector('[data-cantidad-menos]')?.addEventListener('click', () => mueve(-1));
+            document.querySelector('[data-cantidad-mas]')?.addEventListener('click', () => mueve(1));
 
-        document.querySelector('[data-cantidad-menos]')?.addEventListener('click', () => mueve(-1));
-        document.querySelector('[data-cantidad-mas]')?.addEventListener('click', () => mueve(1));
+            // Escribir a mano un valor inválido no debe llegar al carrito.
+            campo.addEventListener('change', () => mueve(0));
+        }
 
-        // Escribir a mano un valor inválido no debe llegar al carrito.
-        campo.addEventListener('change', () => mueve(0));
+        // Sincronización reactiva cuando el usuario elige una variante en SelectorVariantes
+        document.addEventListener('ecollifen:variante-seleccionada', (e: Event) => {
+            const custom = e as CustomEvent<{
+                variante: WooVariation & { images?: { src: string; alt?: string }[] };
+                productoId: number;
+                nombreProducto: string;
+            }>;
+            const { variante, nombreProducto } = custom.detail;
+            if (!variante) return;
+
+            // 1. Actualizar Precio vigente
+            const elPrecio = document.querySelector('[data-precio]');
+            if (elPrecio) {
+                elPrecio.textContent = formatoMonedaCLP(variante.price);
+            }
+
+            // 2. Actualizar Precio tachado y badge de descuento
+            const elPrecioNormal = document.querySelector('[data-precio-normal]');
+            const elBadge = document.querySelector('[data-descuento-badge]');
+            const { hayDescuento, porcentaje } = calcularDescuento(variante.price, variante.regular_price);
+
+            if (elPrecioNormal) {
+                elPrecioNormal.textContent = formatoMonedaCLP(variante.regular_price);
+                elPrecioNormal.toggleAttribute('hidden', !hayDescuento);
+            }
+            if (elBadge) {
+                elBadge.textContent = `−${porcentaje}%`;
+                elBadge.toggleAttribute('hidden', !hayDescuento);
+            }
+
+            // 3. Actualizar SKU
+            const sku = variante.sku || '';
+            const elSku = document.querySelector('[data-sku]');
+            if (elSku) {
+                elSku.textContent = sku ? `SKU · ${sku}` : '';
+                elSku.toggleAttribute('hidden', !sku);
+            }
+            const elSpecSku = document.querySelector('[data-spec-sku]');
+            if (elSpecSku) {
+                elSpecSku.textContent = sku;
+            }
+
+            // 4. Actualizar Chip de estado de stock
+            const enStock = variante.stock_status === 'instock';
+            const esBajoPedido = variante.stock_status === 'onbackorder';
+            const elEstado = document.querySelector('[data-estado]');
+            if (elEstado) {
+                if (enStock) {
+                    elEstado.textContent = '● En stock';
+                    elEstado.className = 'inline-flex items-center gap-1.5 rounded-full border px-3 py-1 font-mono text-[11px] font-medium border-green-200 bg-green-50 text-green-700';
+                } else if (esBajoPedido) {
+                    elEstado.textContent = '● Bajo pedido';
+                    elEstado.className = 'inline-flex items-center gap-1.5 rounded-full border px-3 py-1 font-mono text-[11px] font-medium border-gold-200 bg-gold-50 text-gold-700';
+                } else {
+                    elEstado.textContent = '● Sin stock';
+                    elEstado.className = 'inline-flex items-center gap-1.5 rounded-full border px-3 py-1 font-mono text-[11px] font-medium border-border bg-surface-alt text-muted';
+                }
+            }
+
+            // 5. Actualizar botones de compra (ID de variante para Store API)
+            const elementosAgregar = document.querySelectorAll('[data-btn-agregar]');
+            const elCotizar = document.querySelector('[data-btn-cotizar]');
+            const elAddToCart = document.querySelector('[data-add-to-cart]');
+
+            if (elAddToCart) {
+                elAddToCart.setAttribute('data-add-to-cart', String(variante.id));
+            }
+            elementosAgregar.forEach((el) => {
+                el.toggleAttribute('hidden', !enStock);
+            });
+            if (elCotizar) {
+                elCotizar.toggleAttribute('hidden', enStock);
+            }
+
+            // 6. Actualizar enlace dinámico de WhatsApp
+            const elConsulta = document.querySelector<HTMLAnchorElement>('[data-btn-consulta]');
+            if (elConsulta) {
+                const whatsapp = elConsulta.dataset.whatsapp;
+                const opcionTexto = (variante.attributes || [])
+                    .map((a) => a.option)
+                    .filter(Boolean)
+                    .join(', ');
+                const urlActual = window.location.href;
+                const msj = `Hola, quiero asesoría por el producto "${nombreProducto}${opcionTexto ? ` - ${opcionTexto}` : ''}"${sku ? ` (SKU ${sku})` : ''}: ${urlActual}`;
+                if (whatsapp) {
+                    elConsulta.href = `https://wa.me/${whatsapp}?text=${encodeURIComponent(msj)}`;
+                }
+            }
+
+            // 7. Actualizar Galería de imágenes (principal y miniaturas según la variante)
+            let fotosVariante: { src: string; alt?: string }[] | null = (variante.images && variante.images.length > 0)
+                ? variante.images
+                : (variante.image?.src ? [variante.image] : null);
+
+            // Si la variante no trae fotos específicas, restaurar las fotos originales del producto
+            if (!fotosVariante && galeria?.dataset.fotosProducto) {
+                try {
+                    fotosVariante = JSON.parse(galeria.dataset.fotosProducto);
+                } catch {}
+            }
+
+            if (fotosVariante && fotosVariante.length > 0) {
+                const primeraFoto = fotosVariante[0].src;
+                if (main && main.src !== primeraFoto) {
+                    main.src = primeraFoto;
+                    aparecer(main, { y: 0, scale: 1.02, duration: 0.35 });
+                }
+
+                if (galeria) {
+                    if (fotosVariante.length > 1) {
+                        galeria.hidden = false;
+                        galeria.innerHTML = fotosVariante.map((img, i) => `
+                            <button
+                                type="button"
+                                data-thumb="${img.src}"
+                                aria-label="Ver imagen ${i + 1} de ${fotosVariante.length}"
+                                class="size-18 cursor-pointer overflow-hidden rounded-lg border-[1.5px] bg-white p-1.5 transition-colors ${i === 0 ? 'border-isotipo' : 'border-border hover:border-green-300'}"
+                            >
+                                <img src="${img.src}" alt="${img.alt || ''}" class="h-full w-full object-contain" loading="lazy" />
+                            </button>
+                        `).join('');
+                        vincularMiniaturas();
+                    } else {
+                        galeria.hidden = true;
+                    }
+                }
+            } else if (main && galeria) {
+                const miniaturas = galeria.querySelectorAll<HTMLButtonElement>('[data-thumb]');
+                miniaturas.forEach((btn) => {
+                    const coincide = btn.dataset.thumb === main.src;
+                    btn.classList.toggle('border-isotipo', coincide);
+                    btn.classList.toggle('border-border', !coincide);
+                });
+            }
+        });
     }
 
     document.addEventListener('astro:page-load', initFicha);
