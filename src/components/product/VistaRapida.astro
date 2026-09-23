@@ -14,6 +14,7 @@
 // Se rellena en JS a partir de los data-* de la tarjeta sobre la que se hizo
 // clic: sin pedir nada al servidor, y con el precio/stock ya corregidos por
 // PreciosEnVivo si aplicó.
+// Si es producto variable, guía hacia la selección de opciones y medidas.
 ---
 
 <div
@@ -36,17 +37,29 @@
                 <span data-qv-cat></span> <span data-qv-sku></span>
             </p>
             <h3 data-qv-nombre class="mt-3 font-display text-2xl leading-tight font-semibold text-primary"></h3>
-            <div class="mt-4 flex items-baseline gap-3.5">
+            <div class="mt-4 flex items-baseline gap-2">
+                <span data-qv-desde hidden class="font-mono text-xs text-muted">Desde</span>
                 <p data-qv-precio class="text-[28px] leading-none font-bold tracking-tight text-green-700 tabular-nums"></p>
                 <span data-qv-estado class="font-mono text-[11px] font-medium"></span>
+            </div>
+            <div data-qv-variantes-aviso hidden class="mt-2.5">
+                <span class="inline-flex items-center gap-1.5 rounded-md bg-green-50 border border-green-200/60 px-2.5 py-1 font-mono text-[11px] text-isotipo font-medium">
+                    ✦ Múltiples formatos y medidas disponibles
+                </span>
             </div>
             <p data-qv-desc class="mt-4 text-sm leading-relaxed text-muted"></p>
             <div class="mt-6 flex gap-2.5">
                 <button
                     type="button"
                     data-qv-agregar
-                    class="flex-1 rounded-lg bg-cta py-3 text-center font-semibold text-cta-contrast transition-colors hover:bg-green-600"
+                    class="flex-1 cursor-pointer rounded-lg bg-cta py-3 text-center font-semibold text-cta-contrast transition-colors hover:bg-green-600"
                 >Agregar</button>
+                <a
+                    data-qv-opciones
+                    hidden
+                    href="#"
+                    class="flex-1 rounded-lg bg-cta py-3 text-center font-semibold text-cta-contrast transition-colors hover:bg-green-600"
+                >Ver opciones →</a>
                 <a
                     data-qv-cotizar
                     href="/contacto"
@@ -61,7 +74,7 @@
             type="button"
             data-qv-cerrar
             aria-label="Cerrar vista rápida"
-            class="absolute top-3.5 right-3.5 flex size-9 items-center justify-center rounded-full border border-border bg-surface text-muted transition-colors hover:bg-surface-alt hover:text-primary"
+            class="absolute top-3.5 right-3.5 flex size-9 cursor-pointer items-center justify-center rounded-full border border-border bg-surface text-muted transition-colors hover:bg-surface-alt hover:text-primary"
         >
             <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg>
         </button>
@@ -97,6 +110,7 @@
         if (!capa) return;
 
         const d = card.dataset;
+        const esVariable = d.type === 'variable';
 
         // El precio y el estado se leen de lo que la tarjeta muestra AHORA
         // (PreciosEnVivo ya pudo haberlos corregido), no del data- original.
@@ -109,7 +123,14 @@
 
         texto('[data-qv-nombre]', d.name ?? '');
         texto('[data-qv-cat]', d.cat ?? '');
-        texto('[data-qv-sku]', d.sku ? `· SKU ${d.sku}` : '');
+
+        // SKU / opciones
+        if (esVariable && d.optionsCount) {
+            texto('[data-qv-sku]', `· ${d.optionsCount} opciones`);
+        } else {
+            texto('[data-qv-sku]', d.sku ? `· SKU ${d.sku}` : '');
+        }
+
         texto('[data-qv-precio]', precioTexto);
         texto('[data-qv-desc]', d.desc || 'Sin descripción disponible — pide más detalle por asesoría.');
 
@@ -125,17 +146,33 @@
             img.alt = d.name ?? '';
         }
 
+        const desdeEl = document.querySelector<HTMLElement>('[data-qv-desde]');
+        const avisoEl = document.querySelector<HTMLElement>('[data-qv-variantes-aviso]');
         const agregar = document.querySelector<HTMLElement>('[data-qv-agregar]');
+        const opciones = document.querySelector<HTMLAnchorElement>('[data-qv-opciones]');
         const cotizar = document.querySelector<HTMLElement>('[data-qv-cotizar]');
-        if (agregar) {
-            agregar.toggleAttribute('hidden', !enStock);
-            // Reutiliza el handler global del carrito: el modal no repite la
-            // lógica de agregar, solo se identifica con el id correcto.
-            if (d.id) agregar.setAttribute('data-add-to-cart', d.id);
-        }
-        cotizar?.toggleAttribute('hidden', enStock);
-
         const ficha = document.querySelector<HTMLAnchorElement>('[data-qv-ficha]');
+
+        if (desdeEl) desdeEl.toggleAttribute('hidden', !esVariable);
+        if (avisoEl) avisoEl.toggleAttribute('hidden', !esVariable);
+
+        if (esVariable) {
+            agregar?.setAttribute('hidden', '');
+            if (opciones) {
+                opciones.toggleAttribute('hidden', !enStock);
+                if (d.id) opciones.href = `/producto/${d.id}`;
+            }
+            cotizar?.toggleAttribute('hidden', enStock);
+        } else {
+            opciones?.setAttribute('hidden', '');
+            if (agregar) {
+                agregar.toggleAttribute('hidden', !enStock);
+                // Reutiliza el handler global del carrito
+                if (d.id) agregar.setAttribute('data-add-to-cart', d.id);
+            }
+            cotizar?.toggleAttribute('hidden', enStock);
+        }
+
         if (ficha && d.id) ficha.href = `/producto/${d.id}`;
 
         capa.removeAttribute('hidden');

@@ -71,7 +71,16 @@ export default function CartDrawer() {
 
                                     <div class="flex min-w-0 flex-1 flex-col">
                                         <p class="line-clamp-2 text-sm font-medium text-foreground">{item.name}</p>
-                                        <p class="text-sm font-semibold text-green-700">{formatMoney(item.lineTotal, cart.currency)}</p>
+                                        {item.variation && item.variation.length > 0 && (
+                                            <div class="mt-1 flex flex-wrap gap-1">
+                                                {item.variation.map((v, idx) => (
+                                                    <span key={idx} class="inline-flex items-center rounded-md border border-green-200/60 bg-green-50 px-2 py-0.5 font-mono text-[11px] text-isotipo">
+                                                        {v.attribute ? `${v.attribute}: ` : ''}<strong class="font-semibold text-primary">{v.value}</strong>
+                                                    </span>
+                                                ))}
+                                            </div>
+                                        )}
+                                        <p class="mt-1 text-sm font-semibold text-green-700">{formatMoney(item.lineTotal, cart.currency)}</p>
 
                                         <div class="mt-auto flex items-center gap-1">
                                             <button
@@ -106,7 +115,12 @@ export default function CartDrawer() {
                             </div>
                             <p class="mt-1 text-xs text-muted">Despacho e impuestos se calculan en el pago.</p>
                             <a
-                                href={CHECKOUT_URL}
+                                href={(() => {
+                                    if (cart.items.length === 0) return CHECKOUT_URL;
+                                    const sep = CHECKOUT_URL.includes('?') ? '&' : '?';
+                                    const primer = cart.items[0];
+                                    return `${CHECKOUT_URL}${sep}add-to-cart=${primer.id}&quantity=${primer.quantity}`;
+                                })()}
                                 class="mt-4 block rounded-lg bg-cta py-3 text-center font-semibold text-cta-contrast transition-colors hover:bg-green-600"
                             >
                                 Ir a pagar

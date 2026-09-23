@@ -11,6 +11,7 @@ export type ItemIndice = {
     categoria: string;
     categoriaSlug: string;
     precio: string;
+    esVariable?: boolean;
     imagen: string | null;
     stock: string;
     /** Nombre + categorías + SKU + etiquetas, ya normalizado para comparar. */
@@ -21,12 +22,15 @@ export type ItemIndice = {
  * Deja el texto comparable: sin tildes, en minúsculas y sin espacios de más.
  * Es lo que permite que "jardineria" encuentre "Jardinería" y que "MOTOSIERRA"
  * encuentre "Motosierra" — los nombres en Woo están escritos de las dos formas.
+ * También convierte superíndices (m² -> m2) para facilitar la búsqueda técnica.
  */
 export function normaliza(texto: string): string {
     return texto
         .normalize('NFD')
         .replace(/[\u0300-\u036f]/g, '')
         .toLowerCase()
+        .replace(/²/g, '2')
+        .replace(/³/g, '3')
         .replace(/\s+/g, ' ')
         .trim();
 }

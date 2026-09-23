@@ -133,6 +133,10 @@ const esHeader = variante === 'header';
             ? '<span class="font-mono text-[10px] text-muted">SIN STOCK</span>'
             : '';
 
+        const prefijoDesde = item.esVariable
+            ? '<span class="font-mono text-[10px] text-muted font-normal mr-1">Desde</span>'
+            : '';
+
         return `
             <li>
                 <a href="/producto/${item.id}" class="flex items-center gap-3 px-3 py-2.5 transition-colors hover:bg-surface-alt">
@@ -142,7 +146,7 @@ const esHeader = variante === 'header';
                         <span class="truncate font-mono text-[10px] tracking-wide text-muted">${item.categoria}</span>
                     </span>
                     <span class="flex shrink-0 flex-col items-end gap-0.5">
-                        <span class="text-sm font-semibold text-green-700 tabular-nums">${formatoPrecio(item.precio)}</span>
+                        <span class="text-sm font-semibold text-green-700 tabular-nums">${prefijoDesde}${formatoPrecio(item.precio)}</span>
                         ${agotado}
                     </span>
                 </a>
