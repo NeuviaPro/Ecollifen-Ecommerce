@@ -1,0 +1,2 @@
+# Forzar saltos de línea LF (Unix) para scripts bash, evitando fallos de sintaxis en Windows (\r\n)
+*.sh text eol=lf
