@@ -13,13 +13,21 @@ set -e
 RAMA_ORIGEN=$(git rev-parse --abbrev-ref HEAD)
 TEMPORAL=/tmp/ecollifen-build
 
+# Compatibilidad multiplataforma: en Windows (Git Bash/MSYS), 'cp -a' falla con
+# 'Invalid argument' en NTFS debido a permisos Unix. Usamos '-r' en Windows
+# y preservamos '-a' intacto para entornos Linux y macOS.
+CP_FLAGS="-a"
+if [[ "$OSTYPE" == "msys" || "$OSTYPE" == "cygwin" ]]; then
+    CP_FLAGS="-r"
+fi
+
 # Se vuelve a la rama de partida PASE LO QUE PASE: error, Ctrl+C o push
 # rechazado. Sin esto, un fallo a medio camino dejaba el repo parado en
 # `production`, con el build volcado sobre el código fuente y sin package.json
 # ni src/ — exactamente lo que ocurrió el 2026-09-11, cuando el push se rechazó
 # por divergencia y `set -e` abortó antes de volver.
 restaurar() {
-    git checkout "$RAMA_ORIGEN" --quiet 2>/dev/null || true
+    git checkout -f "$RAMA_ORIGEN" --quiet 2>/dev/null || true
     rm -rf "$TEMPORAL"
 }
 trap restaurar EXIT
@@ -36,7 +44,7 @@ npm run build
 
 echo "→ Guardando el build aparte…"
 rm -rf "$TEMPORAL"
-cp -a dist/. "$TEMPORAL"
+cp $CP_FLAGS dist/. "$TEMPORAL"
 
 echo "→ Cambiando a production…"
 git checkout production --quiet
@@ -47,7 +55,7 @@ git checkout production --quiet
 # compresión y las cabeceras de caché. El que hay hoy en public_html es un
 # resto de los despliegues por FTP: sigue ahí solo porque el rsync no borra.
 echo "→ Copiando el build (incluidos los archivos ocultos)…"
-cp -a "$TEMPORAL"/. .
+cp $CP_FLAGS "$TEMPORAL"/. .
 
 echo "→ Confirmando…"
 git add -A
