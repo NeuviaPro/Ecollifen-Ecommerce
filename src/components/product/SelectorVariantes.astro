@@ -40,7 +40,10 @@ const variantesCompactas = variantes.map((v) => ({
     stock_status: v.stock_status,
     attributes: v.attributes.map((a) => ({ name: a.name, option: a.option })),
     image: v.image?.src ? { src: v.image.src, alt: v.image.alt || '' } : undefined,
-    images: (v.images || (v.image?.src ? [v.image] : [])).map((img) => ({
+    images: (Array.isArray(v.images) && v.images.length > 0
+        ? v.images
+        : (v.image?.src ? [v.image] : [])
+    ).map((img) => ({
         src: img.src,
         alt: img.alt || '',
     })),

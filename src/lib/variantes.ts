@@ -138,3 +138,78 @@ export function buscarVariantePorOpciones(
         });
     });
 }
+
+export interface EntradaImagenGaleria {
+    id?: number;
+    src: string;
+    alt?: string;
+}
+
+export interface ImagenGaleriaItem {
+    id?: number;
+    src: string;
+    alt: string;
+}
+
+/**
+ * Unifica las imágenes de una variante con la galería del producto padre (DRY & Clean Architecture).
+ *
+ * Reglas de negocio:
+ * 1. La imagen principal de la variante (`variante.image` o primera en `variante.images`) va primero.
+ * 2. Si la variante tiene imágenes adicionales en su galería (`gallery_images`), se incorporan a continuación.
+ * 3. Se incorporan las imágenes del producto padre (`imagenesPadre`) evitando duplicados por URL (`src`).
+ * 4. Si la variante no posee imágenes, devuelve las del padre.
+ */
+export function unificarGaleria(
+    variante?: {
+        image?: EntradaImagenGaleria;
+        gallery_images?: EntradaImagenGaleria[];
+        images?: EntradaImagenGaleria[];
+    },
+    imagenesPadre: EntradaImagenGaleria[] = []
+): ImagenGaleriaItem[] {
+    const resultado: ImagenGaleriaItem[] = [];
+    const urlsVistas = new Set<string>();
+
+    const normalizarUrl = (url: string) => url.split('?')[0].trim().toLowerCase();
+
+    const agregar = (img?: EntradaImagenGaleria) => {
+        if (!img || !img.src) return;
+        const limpia = img.src.trim();
+        const clave = normalizarUrl(limpia);
+        if (!clave || urlsVistas.has(clave)) return;
+        urlsVistas.add(clave);
+        resultado.push({
+            id: img.id,
+            src: limpia,
+            alt: img.alt || '',
+        });
+    };
+
+    // 1. Imagen principal de la variante
+    if (variante?.image?.src) {
+        agregar(variante.image);
+    }
+
+    // 2. Galería propia de la variante si existe
+    if (Array.isArray(variante?.gallery_images)) {
+        for (const img of variante.gallery_images) {
+            agregar(img);
+        }
+    }
+
+    // Si la variante tiene fotos propias (principal o galería), usamos exclusivamente las suyas
+    if (resultado.length > 0) {
+        return resultado;
+    }
+
+    // 3. Fallback: Si la variante no posee imágenes propias, hereda la galería/imagen del padre
+    if (Array.isArray(imagenesPadre)) {
+        for (const img of imagenesPadre) {
+            agregar(img);
+        }
+    }
+
+    return resultado;
+}
+
