@@ -10,6 +10,7 @@ import {
     formatoMonedaCLP,
     calcularDescuento,
     encontrarVarianteInicial,
+    unificarGaleria,
 } from '@/lib/variantes';
 
 // Una página estática por producto de WooCommerce.
@@ -80,7 +81,7 @@ export async function getStaticPaths() {
         let variantes: WooVariation[] = [];
         if (product.type === 'variable' && product.variations && product.variations.length > 0) {
             try {
-                variantes = await getWooProductVariations(product.id);
+                variantes = await getWooProductVariations(product.id, product.images);
             } catch (err) {
                 console.error(`[producto ${product.id}] No se pudieron cargar variantes:`, err);
             }
@@ -145,10 +146,9 @@ const enStock = estadoKey === 'instock';
 const skuActual = varianteInicial?.sku || product.sku;
 const categoria = product.categories?.[0];
 
-// Galería de imágenes inicial: si la variante inicial tiene fotos propias o galería, las usamos;
-// de lo contrario, usamos las imágenes generales del producto.
-const imagenesIniciales = (esVariable && varianteInicial?.images && varianteInicial.images.length > 0)
-    ? varianteInicial.images
+// Galería de imágenes inicial: unifica la imagen de la variante con la galería general del producto
+const imagenesIniciales = esVariable
+    ? unificarGaleria(varianteInicial, product.images || [])
     : (product.images || []);
 
 const mainImage = imagenesIniciales[0] || product.images?.[0];
@@ -669,18 +669,22 @@ const descripcionOG = (resumenHTML || descripcionHTML || '')
             }
 
             // 7. Actualizar Galería de imágenes (principal y miniaturas según la variante)
-            let fotosVariante: { src: string; alt?: string }[] | null = (variante.images && variante.images.length > 0)
-                ? variante.images
-                : (variante.image?.src ? [variante.image] : null);
+            let fotosVariante: { src: string; alt?: string }[] = [];
 
-            // Si la variante no trae fotos específicas, restaurar las fotos originales del producto
-            if (!fotosVariante && galeria?.dataset.fotosProducto) {
+            if (Array.isArray(variante.images) && variante.images.length > 0) {
+                fotosVariante = [...variante.images];
+            } else if (variante.image?.src) {
+                fotosVariante = [{ ...variante.image }];
+            }
+
+            // Fallback en cliente: si la variante NO tiene fotos propias, usar las fotos originales del producto padre
+            if (fotosVariante.length === 0 && galeria?.dataset.fotosProducto) {
                 try {
-                    fotosVariante = JSON.parse(galeria.dataset.fotosProducto);
+                    fotosVariante = JSON.parse(galeria.dataset.fotosProducto) as { src: string; alt?: string }[];
                 } catch {}
             }
 
-            if (fotosVariante && fotosVariante.length > 0) {
+            if (fotosVariante.length > 0) {
                 const primeraFoto = fotosVariante[0].src;
                 if (main && main.src !== primeraFoto) {
                     main.src = primeraFoto;

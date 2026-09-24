@@ -131,6 +131,8 @@ export async function getHeroSlides(): Promise<HeroSlide[]> {
 
 // --- WooCommerce: productos ---
 
+import { unificarGaleria } from '@/lib/variantes';
+
 export interface WooVariation {
     id: number;
     parent_id: number;
@@ -154,6 +156,7 @@ export interface WooProduct {
     id: number;
     name: string;
     type?: 'simple' | 'variable' | 'grouped' | 'external' | string;
+    permalink?: string;
     price: string;          // precio vigente, texto plano, ej "589990" (en variables: precio mínimo)
     regular_price: string;
     sale_price: string;
@@ -162,7 +165,7 @@ export interface WooProduct {
     sku: string;
     short_description: string;  // HTML (resumen)
     description: string;        // HTML (descripción completa)
-    images: { src: string, alt: string }[];
+    images: { id?: number, src: string, alt: string }[];
     categories: { id: number, name: string, slug: string }[];
     // Variantes (WooCommerce):
     variations?: number[];             // IDs que entrega el objeto padre de Woo
@@ -257,7 +260,10 @@ export function getCatalogoCompleto(): Promise<WooProduct[]> {
 // llamadas durante el build no repitan peticiones HTTP a WordPress.
 const variantesCache = new Map<number, Promise<WooVariation[]>>();
 
-export function getWooProductVariations(productId: number): Promise<WooVariation[]> {
+export function getWooProductVariations(
+    productId: number,
+    parentImages?: { id?: number; src: string; alt?: string }[]
+): Promise<WooVariation[]> {
     const enCache = variantesCache.get(productId);
     if (enCache) return enCache;
 
@@ -268,61 +274,22 @@ export function getWooProductVariations(productId: number): Promise<WooVariation
         `/wc/v3/products/${productId}/variations`,
         params,
         `las variantes del producto ${productId}`
-    ).then(async (variantes) => {
-        // Recolectar todos los gallery_image_ids únicos de las variantes
-        const mediaIds = [...new Set(variantes.flatMap((v) => v.gallery_image_ids || []))];
-
-        const mediaMap = new Map<number, { id: number; src: string; alt: string }>();
-
-        if (mediaIds.length > 0) {
-            try {
-                // Consultar en lote los medios de WordPress
-                const res = await fetchConReintentos(
-                    `${apiBase()}/wp/v2/media?include=${mediaIds.join(",")}&per_page=100`,
-                    `los medios de las variantes del producto ${productId}`
-                );
-                const items = (await res.json()) as Array<{
-                    id: number;
-                    source_url?: string;
-                    guid?: { rendered?: string };
-                    alt_text?: string;
-                    title?: { rendered?: string };
-                }>;
-
-                for (const item of items) {
-                    const src = item.source_url || item.guid?.rendered || "";
-                    if (src) {
-                        mediaMap.set(item.id, {
-                            id: item.id,
-                            src,
-                            alt: item.alt_text || item.title?.rendered || "",
-                        });
-                    }
-                }
-            } catch (err) {
-                console.warn(`[api] No se pudieron cargar medios para variantes de ${productId}:`, err);
-            }
-        }
-
-        // Asignar galería resuelta a cada variante
+    ).then((variantes) => {
         return variantes.map((v) => {
-            const galeriaResuelta = (v.gallery_image_ids || [])
-                .map((id) => mediaMap.get(id))
-                .filter((img): img is { id: number; src: string; alt: string } => Boolean(img?.src));
-
-            const imagenesUnificadas: { id?: number; src: string; alt: string }[] = [];
-            if (v.image?.src) {
-                imagenesUnificadas.push(v.image);
-            }
-            for (const img of galeriaResuelta) {
-                if (!imagenesUnificadas.some((existente) => existente.src === img.src)) {
-                    imagenesUnificadas.push(img);
-                }
-            }
+            // Unificar imagen de la variante + fotos de galería de la variante + fotos del producto padre.
+            // Si la variante no posee fotos propias o solo tiene una parte, hereda de forma resiliente
+            // la galería o imagen general del producto padre sin URLs duplicadas.
+            const imagenesUnificadas = unificarGaleria(
+                {
+                    image: v.image,
+                    gallery_images: v.gallery_images,
+                },
+                parentImages || []
+            );
 
             return {
                 ...v,
-                gallery_images: galeriaResuelta,
+                gallery_images: v.gallery_images || [],
                 images: imagenesUnificadas,
             };
         });
