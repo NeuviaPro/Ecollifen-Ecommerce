@@ -114,13 +114,27 @@ export default function CartDrawer() {
                                 <span class="text-lg font-semibold text-foreground">{formatMoney(cart.total, cart.currency)}</span>
                             </div>
                             <p class="mt-1 text-xs text-muted">Despacho e impuestos se calculan en el pago.</p>
+                            {/* Enlace LIMPIO al checkout, sin `?add-to-cart=`.
+                                El carrito ya está en la sesión de WooCommerce: en
+                                producción Astro y WordPress comparten dominio y la
+                                cookie viaja sola. Con `?add-to-cart=` Woo volvía a
+                                sumar el producto en cada visita (verificado: 1 → 2 →
+                                3 unidades), y el cliente llegaba a pagar de más.
+
+                                data-astro-reload: sin él, el ClientRouter hace primero
+                                un fetch a la URL para ver si es una página de Astro,
+                                y como no lo es, recién entonces navega. Son dos
+                                peticiones por clic a WordPress; con el checkout limpio
+                                es solo tiempo perdido, pero con cualquier URL que
+                                modifique el carrito sumaría dos veces.
+
+                                En desarrollo (localhost ≠ ecollifen.cl) el checkout NO
+                                ve este carrito: son orígenes distintos y el carrito de
+                                Astro va por Cart-Token, no por la cookie de WordPress.
+                                El checkout se prueba contra el sitio desplegado. */}
                             <a
-                                href={(() => {
-                                    if (cart.items.length === 0) return CHECKOUT_URL;
-                                    const sep = CHECKOUT_URL.includes('?') ? '&' : '?';
-                                    const primer = cart.items[0];
-                                    return `${CHECKOUT_URL}${sep}add-to-cart=${primer.id}&quantity=${primer.quantity}`;
-                                })()}
+                                href={CHECKOUT_URL}
+                                data-astro-reload
                                 class="mt-4 block rounded-lg bg-cta py-3 text-center font-semibold text-cta-contrast transition-colors hover:bg-green-600"
                             >
                                 Ir a pagar

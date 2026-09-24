@@ -500,6 +500,12 @@ const descripcionOG = (resumenHTML || descripcionHTML || '')
     import { formatoMonedaCLP, calcularDescuento } from '@/lib/variantes';
     import type { WooVariation } from '@/lib/api';
 
+    // El listener del cambio de variante se registra en `document`, que el
+    // ClientRouter NO reemplaza al navegar. Añadido en cada astro:page-load, se
+    // acumulaba una copia por cada ficha visitada, cada una atada a la galería
+    // de su página (ya fuera del DOM). Se guarda aquí para quitar el anterior.
+    let alSeleccionarVariante: ((e: Event) => void) | null = null;
+
     function initFicha() {
         const main = document.querySelector<HTMLImageElement>('[data-main-image]');
         const galeria = document.querySelector<HTMLElement>('[data-galeria-miniaturas]');
@@ -564,14 +570,24 @@ const descripcionOG = (resumenHTML || descripcionHTML || '')
         }
 
         // Sincronización reactiva cuando el usuario elige una variante en SelectorVariantes
-        document.addEventListener('ecollifen:variante-seleccionada', (e: Event) => {
+        if (alSeleccionarVariante) {
+            document.removeEventListener('ecollifen:variante-seleccionada', alSeleccionarVariante);
+        }
+
+        alSeleccionarVariante = (e: Event) => {
             const custom = e as CustomEvent<{
                 variante: WooVariation & { images?: { src: string; alt?: string }[] };
                 productoId: number;
                 nombreProducto: string;
             }>;
-            const { variante, nombreProducto } = custom.detail;
-            if (!variante) return;
+            const { variante, nombreProducto, productoId } = custom.detail;
+
+            // Solo el selector de ESTA ficha manda sobre su precio y su botón.
+            // Sin el filtro, cualquier otro selector de la página (hoy no hay,
+            // pero la vista rápida es candidata) cambiaría el producto que se
+            // agrega al carrito aquí.
+            const panel = document.querySelector<HTMLElement>('[data-panel-compra]');
+            if (!variante || !panel || Number(panel.dataset.id) !== productoId) return;
 
             // 1. Actualizar Precio vigente
             const elPrecio = document.querySelector('[data-precio]');
@@ -697,7 +713,9 @@ const descripcionOG = (resumenHTML || descripcionHTML || '')
                     btn.classList.toggle('border-border', !coincide);
                 });
             }
-        });
+        };
+
+        document.addEventListener('ecollifen:variante-seleccionada', alSeleccionarVariante);
     }
 
     document.addEventListener('astro:page-load', initFicha);
