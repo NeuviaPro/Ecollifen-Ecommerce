@@ -1,0 +1,146 @@
+---
+// Tres accesos grandes justo debajo del carrusel del hero: Raíz Viva, Kits y
+// Huertos. Son los rubros que el cliente quiere empujar desde la primera
+// pantalla, antes del mapa general "Todo el catálogo, por rubro".
+//
+// - Raíz Viva enlaza a su página de marca (/raiz-viva), que existe aunque la
+//   categoría de WooCommerce aún no tenga productos. Por eso siempre se muestra.
+// - Kits y Huertos salen de WooCommerce: el enlace y el contador vienen de la
+//   API. Si una categoría no existe o está vacía, su tarjeta no se muestra en
+//   vez de llevar a un 404 (mismo criterio que Vitrinas y "Explora por área").
+// - Kits: el slug exacto no está fijado en el código, así que se busca la
+//   categoría cuyo slug o nombre contenga "kit".
+//
+// Foto opcional: basta con dejar src/assets/accesos/<clave>.webp (o .jpg/.png)
+// con la clave "raiz-viva", "kits" o "huertos" y aparece sola. Raíz Viva ya
+// trae una foto de producto como respaldo; las otras dos usan un fondo verde.
+import { Image } from 'astro:assets';
+import type { ImageMetadata } from 'astro';
+import fotoRaizViva from '@/assets/raizViva/raiz-viva-producto.webp';
+import { getAllWooCategories, getCatalogoCompleto } from '@/lib/api';
+import type { WooCategory } from '@/lib/api';
+import { conteosDeRama } from '@/lib/categorias';
+
+const fotos = import.meta.glob<{ default: ImageMetadata }>(
+    '/src/assets/accesos/*.{webp,jpg,jpeg,png}',
+    { eager: true },
+);
+const fotoDe = (clave: string): ImageMetadata | undefined => {
+    const ruta = Object.keys(fotos).find((k) => k.includes(`/accesos/${clave}.`));
+    return ruta ? fotos[ruta]!.default : undefined;
+};
+
+let categorias: WooCategory[] = [];
+let conteos = new Map<number, number>();
+try {
+    const [cats, productos] = await Promise.all([getAllWooCategories(), getCatalogoCompleto()]);
+    categorias = cats;
+    conteos = conteosDeRama(cats, productos);
+} catch (error) {
+    console.error('[accesos] No se pudieron cargar las categorías:', error);
+}
+
+type Acceso = {
+    clave: string;
+    eyebrow: string;
+    titulo: string;
+    bajada: string;
+    cta: string;
+    href: string;
+    count?: number;
+    foto?: ImageMetadata;
+    icono: string;
+};
+
+const accesos: Acceso[] = [];
+
+// 1) Raíz Viva — siempre visible.
+accesos.push({
+    clave: 'raiz-viva',
+    eyebrow: 'MARCA PROPIA',
+    titulo: 'Raíz Viva',
+    bajada: 'Sustratos y compost para que tu huerto y tus macetas arranquen bien.',
+    cta: 'Conocer la línea',
+    href: '/raiz-viva',
+    foto: fotoDe('raiz-viva') ?? fotoRaizViva,
+    icono: 'M12 21c0-5 2-9 7-11-1 5-3 8-7 9M12 21c0-6-2-10-7-12 1 6 3 9 7 11M12 21v-6',
+});
+
+// 2) Kits — categoría de Woo cuyo slug o nombre contenga "kit".
+const catKits = categorias.find((c) => /kit/i.test(c.slug) || /kit/i.test(c.name));
+if (catKits && (conteos.get(catKits.id) ?? catKits.count) > 0) {
+    accesos.push({
+        clave: 'kits',
+        eyebrow: 'TODO EN UNO',
+        titulo: 'Kits',
+        bajada: 'Conjuntos armados para partir sin armar la lista pieza por pieza.',
+        cta: 'Ver kits',
+        href: `/tienda/${catKits.slug}`,
+        count: conteos.get(catKits.id) ?? catKits.count,
+        foto: fotoDe('kits'),
+        icono: 'M4 8h16v11H4V8ZM4 8l2-4h12l2 4M9 12h6',
+    });
+}
+
+// 3) Huertos — el área raíz "Huertos y Agrícolas".
+const catHuertos = categorias.find((c) => c.slug === 'huertos-y-agricolas');
+if (catHuertos && (conteos.get(catHuertos.id) ?? 0) > 0) {
+    accesos.push({
+        clave: 'huertos',
+        eyebrow: 'ÁREA',
+        titulo: 'Huertos y Agrícolas',
+        bajada: 'Equipos y herramientas para trabajar la tierra y cuidar tu cultivo.',
+        cta: 'Ver huertos',
+        href: `/tienda/${catHuertos.slug}`,
+        count: conteos.get(catHuertos.id),
+        foto: fotoDe('huertos'),
+        icono: 'M4 20c0-5 3-8 8-8s8 3 8 8M12 12V6M12 6c0-1.7 1.3-3 3-3M12 6c0-1.7-1.3-3-3-3',
+    });
+}
+---
+
+<section class="mx-auto max-w-6xl px-6 py-12 md:py-14">
+    <div
+        class:list={[
+            'grid grid-cols-1 gap-4',
+            accesos.length >= 3 ? 'md:grid-cols-3' : accesos.length === 2 ? 'md:grid-cols-2' : '',
+        ]}
+        data-anim-stagger="0.08"
+    >
+        {accesos.map((a) => (
+            <a
+                href={a.href}
+                class="group relative isolate flex min-h-[260px] flex-col justify-end overflow-hidden rounded-2xl bg-primary text-white transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_22px_40px_-24px_rgba(18,58,30,.7)]"
+            >
+                {a.foto ? (
+                    <Image
+                        src={a.foto}
+                        alt=""
+                        widths={[480, 720]}
+                        sizes="(min-width: 768px) 33vw, 100vw"
+                        class="absolute inset-0 -z-20 size-full object-cover transition-transform duration-500 group-hover:scale-105"
+                    />
+                ) : (
+                    <span class="absolute inset-0 -z-20 flex items-start justify-end bg-gradient-to-br from-green-800 to-green-950 p-5 text-green-300/25">
+                        <svg class="size-28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d={a.icono} />
+                        </svg>
+                    </span>
+                )}
+                <span class="absolute inset-0 -z-10 bg-gradient-to-t from-green-950/90 via-green-950/55 to-green-950/10" aria-hidden="true"></span>
+
+                <span class="p-5">
+                    <span class="font-mono text-[11px] tracking-[0.16em] text-green-300">
+                        {a.eyebrow}{a.count !== undefined && ` · ${a.count} ${a.count === 1 ? 'PRODUCTO' : 'PRODUCTOS'}`}
+                    </span>
+                    <span class="mt-1 block font-display text-2xl leading-tight font-semibold">{a.titulo}</span>
+                    <span class="mt-1.5 block text-sm leading-snug text-green-50/85">{a.bajada}</span>
+                    <span class="mt-3 inline-flex items-center gap-1.5 text-sm font-semibold text-gold-200">
+                        {a.cta}
+                        <span class="transition-transform duration-300 group-hover:translate-x-1" aria-hidden="true">→</span>
+                    </span>
+                </span>
+            </a>
+        ))}
+    </div>
+</section>
