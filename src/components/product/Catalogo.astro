@@ -14,6 +14,7 @@ import ProductCard from '@/components/product/ProductCard.astro';
 import { Image } from 'astro:assets';
 import type { WooProduct, WooCategory } from '@/lib/api';
 import { CATEGORIAS_OCULTAS } from '@/lib/categorias';
+import { calcularPrecioConIVA } from '@/lib/variantes';
 import type { ImageMetadata } from 'astro';
 import raizVivaImg from '@/assets/raizViva/raiz-viva-producto-frente.webp';
 
@@ -53,7 +54,7 @@ const padres = visibles
     .sort((a, b) => total(b) - total(a));
 
 // Rango real de precios (para el filtro y su leyenda).
-const precios = products.map((p) => Number(p.price)).filter((n) => n > 0);
+const precios = products.map((p) => calcularPrecioConIVA(Number(p.price))).filter((n) => n > 0);
 const precioMin = precios.length ? Math.min(...precios) : 0;
 const precioMax = precios.length ? Math.max(...precios) : 0;
 const money = new Intl.NumberFormat('es-CL', {

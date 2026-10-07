@@ -3,6 +3,11 @@
 
 import type { WooProduct, WooVariation } from '@/lib/api';
 
+/**
+ * Factor de IVA para Chile (19%).
+ */
+export const FACTOR_IVA = 1.19;
+
 const formateadorCLP = new Intl.NumberFormat('es-CL', {
     style: 'currency',
     currency: 'CLP',
@@ -10,11 +15,27 @@ const formateadorCLP = new Intl.NumberFormat('es-CL', {
 });
 
 /**
+ * Calcula el precio final con IVA incluido (19%), redondeado al peso entero más cercano.
+ */
+export function calcularPrecioConIVA(monto: number | string): number {
+    const valor = typeof monto === 'string' ? Number(monto) : monto;
+    if (isNaN(valor) || valor <= 0) return 0;
+    return Math.round(valor * FACTOR_IVA);
+}
+
+/**
  * Formatea un monto numérico o en cadena como moneda chilena ($ 123.456).
  */
 export function formatoMonedaCLP(monto: number | string): string {
     const valor = typeof monto === 'string' ? Number(monto) : monto;
     return formateadorCLP.format(isNaN(valor) ? 0 : valor);
+}
+
+/**
+ * Calcula el precio con IVA y lo formatea como moneda chilena ($ 123.456).
+ */
+export function formatoMonedaConIVA(monto: number | string): string {
+    return formatoMonedaCLP(calcularPrecioConIVA(monto));
 }
 
 /**
