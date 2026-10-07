@@ -6,7 +6,7 @@
 // como acción secundaria — sin stock no hay compra directa.
 // Para productos variables, muestra "Desde $X" y botón "Ver opciones".
 import type { WooProduct } from '@/lib/api';
-import { formatoMonedaCLP } from '@/lib/variantes';
+import { formatoMonedaCLP, calcularPrecioConIVA } from '@/lib/variantes';
 
 interface Props {
     product: WooProduct;
@@ -16,6 +16,7 @@ interface Props {
 const { product, category } = Astro.props;
 const image = product.images?.[0];
 const esVariable = product.type === 'variable';
+const precioConIVA = calcularPrecioConIVA(product.price);
 
 // Mapa de estado de stock → etiqueta + color.
 const estados: Record<string, { label: string, color: string }> = {
@@ -46,7 +47,7 @@ const descripcionPlana = (product.short_description || '')
 <article
     class="group/card relative flex flex-col overflow-hidden rounded-2xl border border-border bg-surface transition-all duration-300 hover:-translate-y-1.5 hover:border-green-200 hover:shadow-[0_18px_40px_-22px_rgba(18,58,30,.35)]"
     data-id={product.id}
-    data-price={product.price}
+    data-price={precioConIVA}
     data-stock={product.stock_status}
     data-type={product.type}
     data-name={product.name}
@@ -115,13 +116,14 @@ const descripcionPlana = (product.short_description || '')
             {product.name}
         </h3>
 
-        <div class="flex items-baseline gap-1.5">
+        <div class="flex flex-wrap items-baseline gap-1.5">
             {esVariable && (
                 <span class="font-mono text-xs text-muted">Desde</span>
             )}
             <p data-precio class="text-[22px] leading-none font-bold tracking-tight text-green-700 tabular-nums">
-                {formatoMonedaCLP(product.price)}
+                {formatoMonedaCLP(precioConIVA)}
             </p>
+            <span class="font-mono text-[11px] text-muted font-normal">IVA inc.</span>
         </div>
 
         {/* Los dos botones se renderizan siempre y se alterna cuál está oculto:

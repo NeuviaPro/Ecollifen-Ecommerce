@@ -11,6 +11,7 @@ import {
     calcularDescuento,
     encontrarVarianteInicial,
     unificarGaleria,
+    calcularPrecioConIVA,
 } from '@/lib/variantes';
 
 // Una página estática por producto de WooCommerce.
@@ -135,8 +136,8 @@ const estados: Record<string, { label: string, chip: string }> = {
 };
 
 // Si hay variante inicial, preseleccionamos sus datos en el HTML servido (SSG)
-const precioActual = Number(varianteInicial?.price || product.price);
-const precioNormal = Number(varianteInicial?.regular_price || product.regular_price || 0);
+const precioActual = calcularPrecioConIVA(Number(varianteInicial?.price || product.price));
+const precioNormal = calcularPrecioConIVA(Number(varianteInicial?.regular_price || product.regular_price || 0));
 const { hayDescuento, porcentaje } = calcularDescuento(precioActual, precioNormal);
 
 const estadoKey = varianteInicial?.stock_status || product.stock_status;
@@ -316,6 +317,7 @@ const descripcionOG = (resumenHTML || descripcionHTML || '')
                         >
                             {formatoMonedaCLP(precioNormal)}
                         </span>
+                        <span class="font-mono text-sm text-muted">IVA inc.</span>
                     </div>
 
                     {resumenHTML && (
@@ -497,7 +499,7 @@ const descripcionOG = (resumenHTML || descripcionHTML || '')
 <script>
     // Galería, selector de cantidad y sincronización reactiva de variantes.
     import { aparecer } from '@/lib/animaciones';
-    import { formatoMonedaCLP, calcularDescuento } from '@/lib/variantes';
+    import { formatoMonedaConIVA, calcularDescuento, calcularPrecioConIVA } from '@/lib/variantes';
     import type { WooVariation } from '@/lib/api';
 
     // El listener del cambio de variante se registra en `document`, que el
@@ -592,16 +594,19 @@ const descripcionOG = (resumenHTML || descripcionHTML || '')
             // 1. Actualizar Precio vigente
             const elPrecio = document.querySelector('[data-precio]');
             if (elPrecio) {
-                elPrecio.textContent = formatoMonedaCLP(variante.price);
+                elPrecio.textContent = formatoMonedaConIVA(variante.price);
             }
 
             // 2. Actualizar Precio tachado y badge de descuento
             const elPrecioNormal = document.querySelector('[data-precio-normal]');
             const elBadge = document.querySelector('[data-descuento-badge]');
-            const { hayDescuento, porcentaje } = calcularDescuento(variante.price, variante.regular_price);
+            const { hayDescuento, porcentaje } = calcularDescuento(
+                calcularPrecioConIVA(variante.price),
+                calcularPrecioConIVA(variante.regular_price)
+            );
 
             if (elPrecioNormal) {
-                elPrecioNormal.textContent = formatoMonedaCLP(variante.regular_price);
+                elPrecioNormal.textContent = formatoMonedaConIVA(variante.regular_price);
                 elPrecioNormal.toggleAttribute('hidden', !hayDescuento);
             }
             if (elBadge) {

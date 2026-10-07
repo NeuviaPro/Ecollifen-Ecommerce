@@ -12,6 +12,7 @@
 
 <script>
     const BASE = `${import.meta.env.PUBLIC_WP_URL}/wp-json/wc/store/v1`;
+    const FACTOR_IVA = 1.19;
 
     const money = new Intl.NumberFormat('es-CL', {
         style: 'currency',
@@ -72,7 +73,8 @@
 
                 const productos = await res.json();
                 for (const p of productos) {
-                    const precio = aPesos(p.prices?.price ?? '0', p.prices?.currency_minor_unit ?? 0);
+                    const precioBase = aPesos(p.prices?.price ?? '0', p.prices?.currency_minor_unit ?? 0);
+                    const precio = Math.round(precioBase * FACTOR_IVA);
                     const estado = p.is_in_stock
                         ? (p.is_on_backorder ? 'onbackorder' : 'instock')
                         : 'outofstock';
