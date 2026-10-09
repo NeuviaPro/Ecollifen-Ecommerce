@@ -1,38 +1,45 @@
 ---
 // "Explora por área": mapa rápido del catálogo en la home.
 //
-// Reemplaza a la antigua sección de Producto Estrella (Raíz Viva), que dejó de
-// tener sentido aquí: la línea ya tiene su propio slide en el hero y su entrada
-// en el menú, así que repetirla en la home era insistir con lo mismo tres veces.
-//
 // Las áreas NO están escritas a mano: salen de las categorías raíz de
 // WooCommerce, con el mismo criterio que el menú y el footer (ver areasDeTienda
 // en @/lib/categorias). Si el cliente crea, renombra o vacía un área, esta
 // sección se actualiza sola en el próximo build.
 //
-// Iconos SVG y no fotos, a propósito: un área es un concepto ("Maquinarias"),
-// no un producto concreto, y cualquier foto que se eligiera sería la de un
-// artículo suelto haciendo de portada de todo un rubro. Además no dependen de
-// que existan seis fotos de calidad pareja —el catálogo hoy no las tiene— ni
-// suman peso a la página.
+// La foto de cada tarjeta es la IMAGEN DE LA CATEGORÍA en WordPress
+// (Productos → Categorías → editar el área → "Imagen"). Se elige una imagen
+// representativa por área y aparece sola en el próximo build, sin tocar código.
+// Si un área no tiene imagen cargada, la tarjeta cae a un fondo de rayas con el
+// icono del área, así que nada se rompe mientras se suben las fotos.
 import { getAllWooCategories, getCatalogoCompleto } from '@/lib/api';
+import type { WooCategory } from '@/lib/api';
 import { areasDeTienda, conteosDeRama } from '@/lib/categorias';
 import type { Area } from '@/lib/categorias';
 
-let areas: Area[] = [];
+// La API de Woo ya entrega `image` en cada categoría; se tipa aquí para no
+// depender de que WooCategory (en @/lib/api) lo declare.
+type CategoriaConImagen = WooCategory & { image?: { src: string; alt: string } | null };
+
+type Tarjeta = Area & { foto?: { src: string; alt: string } };
+
+let areas: Tarjeta[] = [];
 try {
     const [categorias, productos] = await Promise.all([
         getAllWooCategories(),
         getCatalogoCompleto(),
     ]);
-    areas = areasDeTienda(categorias, conteosDeRama(categorias, productos));
+    const porSlug = new Map<string, CategoriaConImagen>(categorias.map((c) => [c.slug, c]));
+
+    areas = areasDeTienda(categorias, conteosDeRama(categorias, productos)).map((area) => {
+        const imagen = porSlug.get(area.slug)?.image;
+        return { ...area, foto: imagen?.src ? { src: imagen.src, alt: imagen.alt || '' } : undefined };
+    });
 } catch (error) {
     console.error('[categorias] No se pudieron cargar las áreas:', error);
 }
 
-// Un trazo por área, buscado por slug. Los slugs son los que ya fijó el
-// cliente en WooCommerce; si aparece uno nuevo cae en el icono genérico y la
-// sección no se rompe.
+// Icono de respaldo (solo si el área no tiene imagen en WP), buscado por slug.
+// Un slug nuevo cae en el icono genérico y la sección no se rompe.
 const ICONOS: Record<string, string> = {
     'jardineria': 'M12 21c0-5 2-9 7-11-1 5-3 8-7 9M12 21c0-6-2-10-7-12 1 6 3 9 7 11M12 21v-6',
     'area-forestal': 'M12 3 6.5 12h3L5 19h14l-4.5-7h3L12 3ZM12 19v3',
@@ -56,31 +63,40 @@ const ICONO_GENERICO = 'M4 7h16M4 12h16M4 17h10';
             </div>
         </div>
 
-        {/* Tarjetas horizontales y no una rejilla de seis columnas: los nombres
-            reales son largos ("Jardinería y Áreas Verdes") y en columnas
-            estrechas se partían en tres líneas. */}
-        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3" data-anim-stagger="0.06">
+        <div class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3" data-anim-stagger="0.06">
             {areas.map((area) => (
                 <a
                     href={`/tienda/${area.slug}`}
-                    class="group flex items-center gap-4 rounded-2xl border border-border bg-surface p-4 transition-all duration-300 hover:-translate-y-1 hover:border-cta hover:shadow-[0_18px_36px_-22px_rgba(18,58,30,.4)]"
+                    class="group relative flex h-56 items-end overflow-hidden rounded-2xl bg-[repeating-linear-gradient(135deg,#d9e2d3_0_14px,#e3ebdd_14px_28px)] transition-transform duration-300 ease-out hover:-translate-y-1.5"
                 >
-                    <span class="flex size-12 shrink-0 items-center justify-center rounded-xl bg-green-50 text-isotipo transition-colors group-hover:bg-cta group-hover:text-white">
-                        <svg class="size-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    {area.foto ? (
+                        <img
+                            src={area.foto.src}
+                            alt={area.foto.alt}
+                            loading="lazy"
+                            decoding="async"
+                            class="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                        />
+                    ) : (
+                        <svg class="absolute top-5 right-5 size-12 text-isotipo/40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                             <path d={ICONOS[area.slug] ?? ICONO_GENERICO} />
                         </svg>
-                    </span>
+                    )}
 
-                    <span class="min-w-0 flex-1">
-                        <span class="block font-display text-[17px] leading-snug font-semibold text-primary">
-                            {area.name}
-                        </span>
-                        <span class="mt-0.5 block font-mono text-[11px] text-muted">
-                            {area.count} {area.count === 1 ? 'producto' : 'productos'}
-                        </span>
-                    </span>
+                    {/* Velo que se tiñe de verde al pasar el mouse. */}
+                    <div class="absolute inset-0 bg-green-950/0 transition-colors duration-300 group-hover:bg-green-950/25"></div>
 
-                    <span class="shrink-0 text-isotipo transition-transform duration-300 group-hover:translate-x-1" aria-hidden="true">→</span>
+                    <div class="relative flex w-full items-end justify-between gap-3 bg-linear-to-t from-green-900/95 via-green-900/60 to-transparent p-5 pt-12">
+                        <div class="min-w-0">
+                            <p class="font-mono text-xs text-green-200">
+                                {area.count} {area.count === 1 ? 'producto' : 'productos'}
+                            </p>
+                            <h3 class="mt-0.5 font-display text-xl leading-snug font-semibold text-white">
+                                {area.name}
+                            </h3>
+                        </div>
+                        <span class="shrink-0 text-white transition-transform duration-300 group-hover:translate-x-1" aria-hidden="true">→</span>
+                    </div>
                 </a>
             ))}
         </div>

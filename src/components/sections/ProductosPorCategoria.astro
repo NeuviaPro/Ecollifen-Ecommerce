@@ -1,0 +1,86 @@
+---
+// "Compra por categoría": cada área del catálogo (Repuestos, Herramientas,
+// Huertos y Agrícolas, etc.) con una muestra de sus productos reales, justo
+// debajo de "Lo más pedido esta temporada".
+//
+// Nada está escrito a mano: las áreas salen de las categorías raíz de
+// WooCommerce, con el mismo criterio y el mismo orden que el menú y el footer
+// (areasDeTienda + ORDEN_AREAS). Los productos de cada área incluyen los de
+// sus subcategorías (productosDeRama), y los agotados quedan al final.
+// Si el cliente crea, renombra o vacía un área en WP, la sección se actualiza
+// sola en el próximo build.
+import { getAllWooCategories, getCatalogoCompleto } from '@/lib/api';
+import type { WooProduct } from '@/lib/api';
+import { areasDeTienda, conteosDeRama, productosDeRama } from '@/lib/categorias';
+import { ordenarPorDisponibilidad } from '@/lib/productos';
+import ProductCard from '@/components/product/ProductCard.astro';
+
+// Cuántos productos se muestran por área. Cuatro llenan una fila completa en
+// escritorio; en móvil (2 columnas) se ven como dos filas.
+const POR_AREA = 4;
+
+type Bloque = {
+    name: string;
+    slug: string;
+    count: number;
+    productos: WooProduct[];
+};
+
+let bloques: Bloque[] = [];
+try {
+    const [categorias, productos] = await Promise.all([
+        getAllWooCategories(),
+        getCatalogoCompleto(),
+    ]);
+    const conteos = conteosDeRama(categorias, productos);
+    const idPorSlug = new Map(categorias.map((c) => [c.slug, c.id]));
+
+    bloques = areasDeTienda(categorias, conteos).map((area) => ({
+        ...area,
+        productos: ordenarPorDisponibilidad(
+            productosDeRama(categorias, productos, idPorSlug.get(area.slug)!),
+        ).slice(0, POR_AREA),
+    }));
+} catch (error) {
+    console.error('[categorias] No se pudieron cargar los productos por área:', error);
+}
+---
+
+{bloques.length > 0 && (
+    <section class="mx-auto max-w-6xl px-6 py-14 md:py-20" aria-labelledby="productos-por-categoria">
+        <div class="mb-10" data-anim>
+            <p class="font-mono text-[11px] tracking-[0.16em] text-isotipo">COMPRA POR CATEGORÍA</p>
+            <h2 id="productos-por-categoria" class="mt-1.5 font-display text-3xl font-semibold text-primary">
+                Encuentra lo que necesitas, por rubro
+            </h2>
+        </div>
+
+        <div class="flex flex-col gap-14 md:gap-16">
+            {bloques.map((bloque) => (
+                <div id={`cat-${bloque.slug}`} class="scroll-mt-24">
+                    <div class="mb-5 flex items-end justify-between gap-4 border-b border-border pb-3" data-anim>
+                        <div class="min-w-0">
+                            <h3 class="font-display text-2xl font-semibold text-primary">{bloque.name}</h3>
+                            <p class="mt-0.5 font-mono text-xs text-muted">
+                                {bloque.count} {bloque.count === 1 ? 'producto' : 'productos'}
+                            </p>
+                        </div>
+                        <a
+                            href={`/tienda/${bloque.slug}`}
+                            class="group/ver shrink-0 text-sm font-semibold text-green-700 transition-colors hover:text-green-600"
+                        >
+                            Ver todo
+                            <span class="inline-block transition-transform duration-300 group-hover/ver:translate-x-1" aria-hidden="true">→</span>
+                        </a>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-4" data-anim-stagger="0.06">
+                        {bloque.productos.map((product) => (
+                            <ProductCard product={product} />
+                        ))}
+                    </div>
+                </div>
+            ))}
+        </div>
+    </section>
+)}
