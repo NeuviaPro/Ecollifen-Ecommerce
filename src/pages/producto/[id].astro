@@ -241,6 +241,10 @@ const descripcionOG = (resumenHTML || descripcionHTML || '')
                             <img
                                 data-main-image
                                 src={mainImage.src}
+                                srcset={mainImage.srcset}
+                                sizes={mainImage.srcset ? "(min-width: 1024px) 520px, 100vw" : undefined}
+                                width="520"
+                                height="520"
                                 alt={mainImage.alt || product.name}
                                 class="h-full w-full object-contain"
                             />
@@ -260,13 +264,23 @@ const descripcionOG = (resumenHTML || descripcionHTML || '')
                             <button
                                 type="button"
                                 data-thumb={img.src}
+                                data-srcset={img.srcset || ''}
                                 aria-label={`Ver imagen ${i + 1} de ${imagenesIniciales.length}`}
                                 class:list={[
                                     "size-18 cursor-pointer overflow-hidden rounded-lg border-[1.5px] bg-white p-1.5 transition-colors",
                                     img.src === mainImage?.src ? "border-isotipo" : "border-border hover:border-green-300",
                                 ]}
                             >
-                                <img src={img.src} alt="" class="h-full w-full object-contain" loading="lazy" />
+                                <img
+                                    src={img.thumbnail || img.src}
+                                    srcset={img.srcset}
+                                    sizes={img.srcset ? "72px" : undefined}
+                                    width="72"
+                                    height="72"
+                                    alt={img.alt || `${product.name} - Vista ${i + 1}`}
+                                    class="h-full w-full object-contain"
+                                    loading="lazy"
+                                />
                             </button>
                         ))}
                     </div>
@@ -518,9 +532,11 @@ const descripcionOG = (resumenHTML || descripcionHTML || '')
             botones.forEach((btn) => {
                 btn.onclick = () => {
                     const src = btn.dataset.thumb;
-                    if (!src || main.src === src) return;
+                    const srcset = btn.dataset.srcset || '';
+                    if (!src || (main.src === src && main.srcset === srcset)) return;
 
                     main.src = src;
+                    main.srcset = srcset;
                     aparecer(main, { y: 0, scale: 1.02, duration: 0.35 });
 
                     // Marca cuál se está viendo.
@@ -578,7 +594,7 @@ const descripcionOG = (resumenHTML || descripcionHTML || '')
 
         alSeleccionarVariante = (e: Event) => {
             const custom = e as CustomEvent<{
-                variante: WooVariation & { images?: { src: string; alt?: string }[] };
+                variante: WooVariation;
                 productoId: number;
                 nombreProducto: string;
             }>;
@@ -674,7 +690,7 @@ const descripcionOG = (resumenHTML || descripcionHTML || '')
             }
 
             // 7. Actualizar Galería de imágenes (principal y miniaturas según la variante)
-            let fotosVariante: { src: string; alt?: string }[] = [];
+            let fotosVariante: { src: string; alt?: string; srcset?: string; thumbnail?: string }[] = [];
 
             if (Array.isArray(variante.images) && variante.images.length > 0) {
                 fotosVariante = [...variante.images];
@@ -685,14 +701,18 @@ const descripcionOG = (resumenHTML || descripcionHTML || '')
             // Fallback en cliente: si la variante NO tiene fotos propias, usar las fotos originales del producto padre
             if (fotosVariante.length === 0 && galeria?.dataset.fotosProducto) {
                 try {
-                    fotosVariante = JSON.parse(galeria.dataset.fotosProducto) as { src: string; alt?: string }[];
+                    fotosVariante = JSON.parse(galeria.dataset.fotosProducto) as { src: string; alt?: string; srcset?: string; thumbnail?: string }[];
                 } catch {}
             }
 
             if (fotosVariante.length > 0) {
-                const primeraFoto = fotosVariante[0].src;
-                if (main && main.src !== primeraFoto) {
-                    main.src = primeraFoto;
+                const primeraFoto = fotosVariante[0];
+                const nuevaFotoSrc = primeraFoto.src;
+                const nuevaFotoSrcset = primeraFoto.srcset || '';
+
+                if (main && (main.src !== nuevaFotoSrc || main.srcset !== nuevaFotoSrcset)) {
+                    main.src = nuevaFotoSrc;
+                    main.srcset = nuevaFotoSrcset;
                     aparecer(main, { y: 0, scale: 1.02, duration: 0.35 });
                 }
 
@@ -703,10 +723,11 @@ const descripcionOG = (resumenHTML || descripcionHTML || '')
                             <button
                                 type="button"
                                 data-thumb="${img.src}"
+                                data-srcset="${img.srcset || ''}"
                                 aria-label="Ver imagen ${i + 1} de ${fotosVariante.length}"
                                 class="size-18 cursor-pointer overflow-hidden rounded-lg border-[1.5px] bg-white p-1.5 transition-colors ${i === 0 ? 'border-isotipo' : 'border-border hover:border-green-300'}"
                             >
-                                <img src="${img.src}" alt="${img.alt || ''}" class="h-full w-full object-contain" loading="lazy" />
+                                <img src="${img.thumbnail || img.src}" ${img.srcset ? `srcset="${img.srcset}" sizes="72px"` : ''} width="72" height="72" alt="${img.alt || `${nombreProducto} - Vista ${i + 1}`}" class="h-full w-full object-contain" loading="lazy" />
                             </button>
                         `).join('');
                         vincularMiniaturas();

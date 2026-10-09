@@ -164,12 +164,18 @@ export interface EntradaImagenGaleria {
     id?: number;
     src: string;
     alt?: string;
+    srcset?: string;
+    sizes?: string;
+    thumbnail?: string;
 }
 
 export interface ImagenGaleriaItem {
     id?: number;
     src: string;
     alt: string;
+    srcset?: string;
+    sizes?: string;
+    thumbnail?: string;
 }
 
 /**
@@ -204,6 +210,9 @@ export function unificarGaleria(
             id: img.id,
             src: limpia,
             alt: img.alt || '',
+            srcset: img.srcset || '',
+            sizes: img.sizes || '',
+            thumbnail: img.thumbnail || limpia,
         });
     };
 

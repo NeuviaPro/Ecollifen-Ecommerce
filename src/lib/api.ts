@@ -133,6 +133,15 @@ export async function getHeroSlides(): Promise<HeroSlide[]> {
 
 import { unificarGaleria } from '@/lib/variantes';
 
+export interface WooImage {
+    id?: number;
+    src: string;
+    alt: string;
+    srcset?: string;
+    sizes?: string;
+    thumbnail?: string;
+}
+
 export interface WooVariation {
     id: number;
     parent_id: number;
@@ -144,10 +153,10 @@ export interface WooVariation {
     on_sale: boolean;
     stock_status: string;   // "instock" | "onbackorder" | "outofstock"
     attributes: { id: number, name: string, option: string, slug?: string }[];
-    image?: { id?: number, src: string, alt: string };
+    image?: WooImage;
     gallery_image_ids?: number[];
-    gallery_images?: { id?: number, src: string, alt: string }[];
-    images?: { id?: number, src: string, alt: string }[]; // galería combinada [image, ...gallery_images]
+    gallery_images?: WooImage[];
+    images?: WooImage[]; // galería combinada [image, ...gallery_images]
     weight?: string;
     dimensions?: { length: string, width: string, height: string };
 }
@@ -165,7 +174,7 @@ export interface WooProduct {
     sku: string;
     short_description: string;  // HTML (resumen)
     description: string;        // HTML (descripción completa)
-    images: { id?: number, src: string, alt: string }[];
+    images: WooImage[];
     categories: { id: number, name: string, slug: string }[];
     // Variantes (WooCommerce):
     variations?: number[];             // IDs que entrega el objeto padre de Woo
@@ -262,7 +271,7 @@ const variantesCache = new Map<number, Promise<WooVariation[]>>();
 
 export function getWooProductVariations(
     productId: number,
-    parentImages?: { id?: number; src: string; alt?: string }[]
+    parentImages?: WooImage[]
 ): Promise<WooVariation[]> {
     const enCache = variantesCache.get(productId);
     if (enCache) return enCache;
