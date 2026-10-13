@@ -243,3 +243,72 @@ export function unificarGaleria(
     return resultado;
 }
 
+/**
+ * Estructura de los datos en vivo que entrega el endpoint de WordPress para cada variante.
+ */
+export interface DatoVarianteEnVivo {
+    price: string;
+    regular_price: string;
+    stock_status: 'instock' | 'outofstock' | 'onbackorder' | string;
+}
+
+export type MapaVariantesEnVivo = Record<string | number, DatoVarianteEnVivo>;
+
+/**
+ * Actualiza una lista de variantes con los datos recibidos de la API en vivo.
+ * Función pura: no muta el array original y retorna un nuevo array con las variantes actualizadas.
+ */
+export function actualizarVariantesConEnVivo(
+    variantes: WooVariation[],
+    datosEnVivo: MapaVariantesEnVivo
+): WooVariation[] {
+    if (!Array.isArray(variantes) || !datosEnVivo) return variantes;
+
+    return variantes.map((v) => {
+        const enVivo = datosEnVivo[v.id] || datosEnVivo[String(v.id)];
+        if (!enVivo) return v;
+
+        return {
+            ...v,
+            price: enVivo.price ?? v.price,
+            regular_price: enVivo.regular_price ?? v.regular_price,
+            stock_status: (enVivo.stock_status as WooVariation['stock_status']) ?? v.stock_status,
+        };
+    });
+}
+
+/**
+ * Resuelve cuál variante debe estar seleccionada considerando el stock en vivo.
+ * Si la variante actualmente seleccionada sigue en stock, se mantiene.
+ * Si quedó sin stock, busca la primera variante que sí tenga stock ('instock').
+ * Si ninguna tiene stock, busca una en preventa ('onbackorder'), o conserva la actual.
+ */
+export function resolverVarianteOptima(
+    variantes: WooVariation[],
+    varianteActualId?: number
+): WooVariation | undefined {
+    if (!variantes || variantes.length === 0) return undefined;
+
+    const actual = variantes.find((v) => v.id === varianteActualId);
+
+    // 1. Si la variante actual existe y está en stock, conservarla
+    if (actual && actual.stock_status === 'instock') {
+        return actual;
+    }
+
+    // 2. Si la actual no está en stock (o no se especificó), buscar la primera con stock
+    const primeraEnStock = variantes.find((v) => v.stock_status === 'instock');
+    if (primeraEnStock) {
+        return primeraEnStock;
+    }
+
+    // 3. Si ninguna tiene stock disponible, buscar una 'onbackorder' (bajo pedido)
+    const primeraBajoPedido = variantes.find((v) => v.stock_status === 'onbackorder');
+    if (primeraBajoPedido) {
+        return primeraBajoPedido;
+    }
+
+    // 4. Fallback: conservar la actual o la primera de la lista (para cotizar)
+    return actual ?? variantes[0];
+}
+
