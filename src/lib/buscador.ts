@@ -5,6 +5,8 @@
 // búsqueda se hace en el cliente sobre un índice prearmado: es instantánea y no
 // depende de que WordPress responda (que tarda ~1 s por petición).
 
+import { FACTOR_IVA } from '@/lib/variantes';
+
 export type ItemIndice = {
     id: number;
     nombre: string;
@@ -112,7 +114,7 @@ export function buscar(indice: ItemIndice[], consulta: string, limite?: number):
 /** Formatea un precio de Woo (texto plano, sin decimales) en pesos chilenos. */
 export function formatoPrecio(valor: string | number): string {
     const numerico = Number(valor) || 0;
-    const conIVA = Math.round(numerico * 1.19);
+    const conIVA = Math.round(numerico * FACTOR_IVA);
     return new Intl.NumberFormat('es-CL', {
         style: 'currency',
         currency: 'CLP',

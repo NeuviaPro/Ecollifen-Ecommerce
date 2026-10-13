@@ -4,9 +4,11 @@
 import type { WooProduct, WooVariation } from '@/lib/api';
 
 /**
- * Factor de IVA para Chile (19%).
+ * Factor de IVA. Dado que los precios en WooCommerce ya vienen configurados con IVA incluido,
+ * se fija en 1.0 para no aplicar un recargo adicional.
+ * Si a futuro se requiere volver a calcularlo sobre un precio neto, basta con cambiar este valor a 1.19.
  */
-export const FACTOR_IVA = 1.19;
+export const FACTOR_IVA = 1.0;
 
 const formateadorCLP = new Intl.NumberFormat('es-CL', {
     style: 'currency',
@@ -15,7 +17,7 @@ const formateadorCLP = new Intl.NumberFormat('es-CL', {
 });
 
 /**
- * Calcula el precio final con IVA incluido (19%), redondeado al peso entero más cercano.
+ * Obtiene el precio final con IVA incluido (redondeado al peso entero más cercano).
  */
 export function calcularPrecioConIVA(monto: number | string): number {
     const valor = typeof monto === 'string' ? Number(monto) : monto;

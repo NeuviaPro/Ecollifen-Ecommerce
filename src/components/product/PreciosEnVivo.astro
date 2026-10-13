@@ -11,8 +11,8 @@
 ---
 
 <script>
+    import { FACTOR_IVA } from '@/lib/variantes';
     const BASE = `${import.meta.env.PUBLIC_WP_URL}/wp-json/wc/store/v1`;
-    const FACTOR_IVA = 1.19;
 
     const money = new Intl.NumberFormat('es-CL', {
         style: 'currency',
