@@ -53,7 +53,7 @@ jobs:
       - name: 5. Ordenar a cPanel que haga "Update from Remote" y "Deploy HEAD Commit"
         uses: pinkasey/cpanel-deploy-action@v1.0.0
         with:
-          hostname: 'https://s3559.usc1.stableserver.net:2083' # <-- Le quité el /logout/ porque la API usa la ruta base
+          hostname: 's3559.usc1.stableserver.net' # <-- Le quité el /logout/ porque la API usa la ruta base
           repository_root: '/home/ecollifen/repositories/Ecollifen-Astro' # <-- Ajustado con tu usuario y repo
           branch: 'production' 
           cpanel_username: '${{ secrets.CPANEL_USERNAME }}'
