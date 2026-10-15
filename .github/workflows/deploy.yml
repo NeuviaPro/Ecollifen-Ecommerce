@@ -51,10 +51,14 @@ jobs:
           keep_files: false
 
       - name: 5. Ordenar a cPanel que haga "Update from Remote" y "Deploy HEAD Commit"
-        uses: pinkasey/cpanel-deploy-action@v1.0.0
-        with:
-          hostname: https://s3559.usc1.stableserver.net
-          repository_root: /home/ecollifen/repositories/Ecollifen-Astro
-          branch: production
-          cpanel_username: ${{ secrets.CPANEL_USERNAME }}
-          cpanel_token: ${{ secrets.CPANEL_TOKEN }}
+        run: |
+          echo "→ 1. Actualizando repositorio en cPanel (git pull)…"
+          curl -s -X POST "https://s3559.usc1.stableserver.net:2083/execute/VersionControl/update" \
+            -H "Authorization: cpanel ${{ secrets.CPANEL_USERNAME }}:${{ secrets.CPANEL_TOKEN }}" \
+            -d "repository_root=/home/ecollifen/repositories/Ecollifen-Astro" \
+            -d "branch=production"
+
+          echo -e "\n→ 2. Ejecutando despliegue de .cpanel.yml…"
+          curl -s -X POST "https://s3559.usc1.stableserver.net:2083/execute/VersionControlDeployment/create" \
+            -H "Authorization: cpanel ${{ secrets.CPANEL_USERNAME }}:${{ secrets.CPANEL_TOKEN }}" \
+            -d "repository_root=/home/ecollifen/repositories/Ecollifen-Astro"
