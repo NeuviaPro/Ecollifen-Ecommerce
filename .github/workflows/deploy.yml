@@ -1,0 +1,62 @@
+name: Build hacia rama y Deploy con Git de cPanel
+
+on:
+  repository_dispatch:
+    types: [woocommerce_catalog_update]
+  workflow_dispatch:
+
+concurrency:
+  group: cpanel-git-deploy
+  cancel-in-progress: true
+
+jobs:
+  build-and-trigger-cpanel:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: 1. Descargar código fuente de Astro
+        uses: actions/checkout@v4
+
+      - name: 2. Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: 3. Instalar dependencias y compilar Astro
+        run: |
+          npm ci
+          npm run build
+        env:
+          # Claves privadas y secretas leídas desde GitHub Secrets
+          WOO_CONSUMER_KEY: ${{ secrets.WOO_CONSUMER_KEY }}
+          WOO_CONSUMER_SECRET: ${{ secrets.WOO_CONSUMER_SECRET }}
+          
+          # URLs y configuraciones públicas leídas desde GitHub Variables
+          WP_API_URL: ${{ vars.WP_API_URL }}
+          PUBLIC_WP_URL: ${{ vars.PUBLIC_WP_URL }}
+          PUBLIC_SITE_URL: ${{ vars.PUBLIC_SITE_URL }}
+          PUBLIC_CHECKOUT_URL: ${{ vars.PUBLIC_CHECKOUT_URL }}
+          PUBLIC_WHATSAPP: ${{ vars.PUBLIC_WHATSAPP }}
+          PUBLIC_CONTACTO_EMAIL: ${{ vars.PUBLIC_CONTACTO_EMAIL }}
+          PUBLIC_INSTAGRAM: ${{ vars.PUBLIC_INSTAGRAM }}
+          PUBLIC_FACEBOOK: ${{ vars.PUBLIC_FACEBOOK }}
+
+      - name: 4. Subir solo el contenido de dist/ a tu rama de build
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./dist
+          publish_branch: production # <-- Corregido para que coincida con tu rama
+          keep_files: false
+
+      - name: 5. Ordenar a cPanel que haga "Update from Remote" y "Deploy HEAD Commit"
+        uses: pinkasey/cpanel-deploy-action@v1.0.0
+        with:
+          hostname: 'https://s3559.usc1.stableserver.net:2083' # <-- Le quité el /logout/ porque la API usa la ruta base
+          repository_root: '/home/ecollifen/repositories/Ecollifen-Ecommerce' # <-- Ajustado con tu usuario y repo
+          branch: 'production' 
+          cpanel_username: '${{ secrets.CPANEL_USERNAME }}'
+          cpanel_token: '${{ secrets.CPANEL_TOKEN }}'
