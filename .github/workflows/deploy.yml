@@ -25,24 +25,22 @@ jobs:
           node-version: '22'
           cache: 'npm'
 
-      - name: 3. Instalar dependencias y compilar Astro
+      - name: 3. Generar .env y compilar Astro
         run: |
+          cat <<EOF > .env
+          WP_API_URL=${{ vars.WP_API_URL }}
+          WOO_CONSUMER_KEY=${{ secrets.WOO_CONSUMER_KEY }}
+          WOO_CONSUMER_SECRET=${{ secrets.WOO_CONSUMER_SECRET }}
+          PUBLIC_WP_URL=${{ vars.PUBLIC_WP_URL }}
+          PUBLIC_SITE_URL=${{ vars.PUBLIC_SITE_URL }}
+          PUBLIC_CHECKOUT_URL=${{ vars.PUBLIC_CHECKOUT_URL }}
+          PUBLIC_WHATSAPP=${{ vars.PUBLIC_WHATSAPP }}
+          PUBLIC_CONTACTO_EMAIL=${{ vars.PUBLIC_CONTACTO_EMAIL }}
+          PUBLIC_INSTAGRAM=${{ vars.PUBLIC_INSTAGRAM }}
+          PUBLIC_FACEBOOK=${{ vars.PUBLIC_FACEBOOK }}
+          EOF
           npm ci
           npm run build
-        env:
-          # Claves privadas y secretas leídas desde GitHub Secrets
-          WOO_CONSUMER_KEY: ${{ secrets.WOO_CONSUMER_KEY }}
-          WOO_CONSUMER_SECRET: ${{ secrets.WOO_CONSUMER_SECRET }}
-          
-          # URLs y configuraciones públicas leídas desde GitHub Variables
-          WP_API_URL: ${{ vars.WP_API_URL }}
-          PUBLIC_WP_URL: ${{ vars.PUBLIC_WP_URL }}
-          PUBLIC_SITE_URL: ${{ vars.PUBLIC_SITE_URL }}
-          PUBLIC_CHECKOUT_URL: ${{ vars.PUBLIC_CHECKOUT_URL }}
-          PUBLIC_WHATSAPP: ${{ vars.PUBLIC_WHATSAPP }}
-          PUBLIC_CONTACTO_EMAIL: ${{ vars.PUBLIC_CONTACTO_EMAIL }}
-          PUBLIC_INSTAGRAM: ${{ vars.PUBLIC_INSTAGRAM }}
-          PUBLIC_FACEBOOK: ${{ vars.PUBLIC_FACEBOOK }}
 
       - name: 4. Subir solo el contenido de dist/ a tu rama de build
         uses: peaceiris/actions-gh-pages@v4
