@@ -11,8 +11,8 @@
 ---
 
 <script>
+    import { FACTOR_IVA } from '@/lib/variantes';
     const BASE = `${import.meta.env.PUBLIC_WP_URL}/wp-json/wc/store/v1`;
-    const FACTOR_IVA = 1.19;
 
     const money = new Intl.NumberFormat('es-CL', {
         style: 'currency',
@@ -26,12 +26,21 @@
         outofstock:  { label: 'Sin stock',   clase: 'text-muted' },
     };
     const CLASES_ESTADO = ['text-isotipo', 'text-gold-700', 'text-muted'];
+    const CHIP_CLASES = {
+        instock:     'border-green-200 bg-green-50 text-green-700',
+        onbackorder: 'border-gold-200 bg-gold-50 text-gold-700',
+        outofstock:  'border-border bg-surface-alt text-muted',
+    };
 
     function aPesos(precio: string, minorUnit: number): number {
         return Number(precio) / 10 ** (minorUnit ?? 0);
     }
 
     function actualizaNodo(nodo: Element, precio: number, estado: keyof typeof ESTADOS) {
+        // Mantener atributos DOM sincronizados para filtros y ordenamientos del catálogo
+        nodo.setAttribute('data-price', String(precio));
+        nodo.setAttribute('data-stock', estado);
+
         const elPrecio = nodo.querySelector('[data-precio]');
         if (elPrecio && precio > 0) {
             const nuevo = money.format(precio);
@@ -42,8 +51,14 @@
         const info = ESTADOS[estado] ?? ESTADOS.outofstock;
         if (elEstado && !elEstado.textContent?.includes(info.label)) {
             elEstado.textContent = `● ${info.label}`;
-            elEstado.classList.remove(...CLASES_ESTADO);
-            elEstado.classList.add(info.clase);
+            if (elEstado.classList.contains('rounded-full')) {
+                // Estilo Chip en ficha de producto simple
+                elEstado.className = `inline-flex items-center gap-1.5 rounded-full border px-3 py-1 font-mono text-[11px] font-medium ${CHIP_CLASES[estado] ?? CHIP_CLASES.outofstock}`;
+            } else {
+                // Estilo texto simple en tarjeta de catálogo
+                elEstado.classList.remove(...CLASES_ESTADO);
+                elEstado.classList.add(info.clase);
+            }
         }
 
         // El botón de compra sigue al stock: sin stock, se ofrece cotizar.

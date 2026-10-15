@@ -165,8 +165,14 @@ const variantesCompactas = variantes.map((v) => ({
 )}
 
 <script>
-    import { buscarVariantePorOpciones } from '@/lib/variantes';
+    import {
+        buscarVariantePorOpciones,
+        coincidenOpciones,
+        actualizarVariantesConEnVivo,
+        resolverVarianteOptima,
+    } from '@/lib/variantes';
     import type { WooVariation } from '@/lib/api';
+    import type { MapaVariantesEnVivo } from '@/lib/variantes';
 
     function initSelectorVariantes() {
         const contenedores = document.querySelectorAll<HTMLElement>('[data-selector-variantes]');
@@ -223,6 +229,96 @@ const variantesCompactas = variantes.map((v) => ({
                 contenedor.dispatchEvent(evento);
             };
 
+            // Utilidad para actualizar clases visuales de botones de un grupo
+            const actualizarEstilosGrupoBoton = (grupo: HTMLElement, valorSeleccionado: string) => {
+                grupo.querySelectorAll<HTMLButtonElement>('[data-btn-opcion]').forEach((b) => {
+                    const esElClickeado = b.dataset.attrVal === valorSeleccionado;
+                    b.setAttribute('aria-checked', esElClickeado ? 'true' : 'false');
+                    b.classList.toggle('border-cta', esElClickeado);
+                    b.classList.toggle('bg-green-50', esElClickeado);
+                    b.classList.toggle('text-primary', esElClickeado);
+                    b.classList.toggle('ring-1', esElClickeado);
+                    b.classList.toggle('ring-cta', esElClickeado);
+                    b.classList.toggle('font-semibold', esElClickeado);
+                    b.classList.toggle('shadow-xs', esElClickeado);
+                    b.classList.toggle('border-border', !esElClickeado);
+                    b.classList.toggle('bg-white', !esElClickeado);
+                    b.classList.toggle('text-foreground', !esElClickeado);
+                });
+
+                const label = grupo.querySelector('[data-label-seleccion]');
+                if (label) label.textContent = valorSeleccionado;
+            };
+
+            // Establecer programáticamente la selección para una variante dada
+            const fijarSeleccionVariante = (variante: WooVariation) => {
+                for (const attr of variante.attributes) {
+                    if (!attr.name || !attr.option) continue;
+                    seleccionActual[attr.name] = attr.option;
+
+                    const grupo = Array.from(contenedor.querySelectorAll<HTMLElement>('[data-grupo-atributo]'))
+                        .find((g) => g.dataset.grupoAtributo === attr.name);
+                    if (!grupo) continue;
+
+                    const select = grupo.querySelector<HTMLSelectElement>('[data-select-opcion]');
+                    if (select) {
+                        select.value = attr.option;
+                        const label = grupo.querySelector('[data-label-seleccion]');
+                        if (label) label.textContent = attr.option;
+                    } else {
+                        actualizarEstilosGrupoBoton(grupo, attr.option);
+                    }
+                }
+            };
+
+            // Actualizar atenuaciones y texto de stock en las opciones (pills y select)
+            const refrescarOpcionesUI = () => {
+                contenedor.querySelectorAll<HTMLElement>('[data-grupo-atributo]').forEach((grupo) => {
+                    const attrName = grupo.dataset.grupoAtributo;
+                    if (!attrName) return;
+
+                    // 1. Botones / Pills
+                    grupo.querySelectorAll<HTMLButtonElement>('[data-btn-opcion]').forEach((btn) => {
+                        const val = btn.dataset.attrVal;
+                        if (!val) return;
+                        const activa = btn.getAttribute('aria-checked') === 'true';
+
+                        const algunaEnStock = variantes.some((v) =>
+                            v.stock_status === 'instock' &&
+                            v.attributes.some((a) => a.name === attrName && (coincidenOpciones(a.option, val) || !a.option))
+                        );
+                        const sinStock = !algunaEnStock;
+
+                        btn.classList.toggle('opacity-60', sinStock && !activa);
+                        let srOnly = btn.querySelector('.sr-only');
+                        if (sinStock) {
+                            if (!srOnly) {
+                                srOnly = document.createElement('span');
+                                srOnly.className = 'sr-only';
+                                srOnly.textContent = ' (sin stock)';
+                                btn.appendChild(srOnly);
+                            }
+                        } else if (srOnly) {
+                            srOnly.remove();
+                        }
+                    });
+
+                    // 2. Opciones de <select>
+                    grupo.querySelectorAll<HTMLSelectElement>('[data-select-opcion]').forEach((sel) => {
+                        Array.from(sel.options).forEach((opt) => {
+                            const val = opt.value;
+                            const algunaEnStock = variantes.some((v) =>
+                                v.stock_status === 'instock' &&
+                                v.attributes.some((a) => a.name === attrName && (coincidenOpciones(a.option, val) || !a.option))
+                            );
+                            const sinStock = !algunaEnStock;
+                            const textoLimpio = opt.textContent?.replace(/\s*\(Sin stock\)/i, '').trim() || val;
+                            opt.textContent = sinStock ? `${textoLimpio} (Sin stock)` : textoLimpio;
+                        });
+                    });
+                });
+            };
+
             // Escuchar clics en botones/pills
             contenedor.querySelectorAll<HTMLButtonElement>('[data-btn-opcion]').forEach((btn) => {
                 btn.addEventListener('click', () => {
@@ -232,26 +328,9 @@ const variantesCompactas = variantes.map((v) => ({
 
                     seleccionActual[attrName] = attrVal;
 
-                    // Actualizar estilos de los botones del mismo grupo
-                    const grupo = btn.closest('[data-grupo-atributo]');
+                    const grupo = btn.closest<HTMLElement>('[data-grupo-atributo]');
                     if (grupo) {
-                        grupo.querySelectorAll<HTMLButtonElement>('[data-btn-opcion]').forEach((b) => {
-                            const esElClickeado = b === btn;
-                            b.setAttribute('aria-checked', esElClickeado ? 'true' : 'false');
-                            b.classList.toggle('border-cta', esElClickeado);
-                            b.classList.toggle('bg-green-50', esElClickeado);
-                            b.classList.toggle('text-primary', esElClickeado);
-                            b.classList.toggle('ring-1', esElClickeado);
-                            b.classList.toggle('ring-cta', esElClickeado);
-                            b.classList.toggle('font-semibold', esElClickeado);
-                            b.classList.toggle('shadow-xs', esElClickeado);
-                            b.classList.toggle('border-border', !esElClickeado);
-                            b.classList.toggle('bg-white', !esElClickeado);
-                            b.classList.toggle('text-foreground', !esElClickeado);
-                        });
-
-                        const label = grupo.querySelector('[data-label-seleccion]');
-                        if (label) label.textContent = attrVal;
+                        actualizarEstilosGrupoBoton(grupo, attrVal);
                     }
 
                     notificarCambio();
@@ -276,11 +355,7 @@ const variantesCompactas = variantes.map((v) => ({
                 });
             });
 
-            // Sincronización inicial. Si el navegador restauró un <select> a un
-            // valor distinto del que marcó el build (pasa al volver atrás cuando
-            // la página no sale de su caché), el desplegable y el resto de la
-            // ficha quedaban desalineados: se veía una medida y se compraba otra,
-            // y elegir la medida visible no hacía nada porque no hay `change`.
+            // Sincronización inicial si el navegador restauró un select
             let restaurado = false;
             contenedor.querySelectorAll<HTMLSelectElement>('[data-select-opcion]').forEach((sel) => {
                 const porDefecto = Array.from(sel.options).find((o) => o.defaultSelected)?.value;
@@ -291,10 +366,44 @@ const variantesCompactas = variantes.map((v) => ({
                 if (label) label.textContent = sel.value;
             });
 
-            // En el siguiente ciclo y no ahora: la ficha también se inicia en
-            // astro:page-load y no está garantizado que su listener ya exista.
-            // Disparado en el acto, el aviso se podía perder.
             if (restaurado) setTimeout(notificarCambio, 0);
+
+            // Sincronización en vivo de precios y stock desde el endpoint de WordPress
+            async function sincronizarEnVivo() {
+                if (!productoId) return;
+                const url = `${import.meta.env.PUBLIC_WP_URL}/wp-json/ecollifen/v1/productos/${productoId}/variantes`;
+                try {
+                    const res = await fetch(url);
+                    if (!res.ok) return;
+                    const datosEnVivo: MapaVariantesEnVivo = await res.json();
+                    if (!datosEnVivo || typeof datosEnVivo !== 'object') return;
+
+                    // 1. Actualizar array en memoria con la lógica de dominio pura
+                    variantes = actualizarVariantesConEnVivo(variantes, datosEnVivo);
+                    if (dataScript) {
+                        dataScript.textContent = JSON.stringify(variantes);
+                    }
+
+                    // 2. Comprobar si la variante seleccionada actualmente quedó sin stock
+                    // y debe cambiar automáticamente a una variante disponible
+                    const varianteActual = buscarVariantePorOpciones(variantes, seleccionActual);
+                    const varianteOptima = resolverVarianteOptima(variantes, varianteActual?.id);
+
+                    if (varianteOptima && (!varianteActual || varianteOptima.id !== varianteActual.id)) {
+                        fijarSeleccionVariante(varianteOptima);
+                    }
+
+                    // 3. Refrescar estado visual de las opciones (pills / selects)
+                    refrescarOpcionesUI();
+
+                    // 4. Notificar a la ficha de producto para refrescar precio, chip de stock y botones
+                    notificarCambio();
+                } catch (error) {
+                    console.warn(`[variantes] No se pudo sincronizar en vivo para producto ${productoId}:`, error);
+                }
+            }
+
+            setTimeout(sincronizarEnVivo, 0);
         });
     }
 

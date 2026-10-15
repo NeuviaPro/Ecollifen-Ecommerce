@@ -607,6 +607,9 @@ const descripcionOG = (resumenHTML || descripcionHTML || '')
             const panel = document.querySelector<HTMLElement>('[data-panel-compra]');
             if (!variante || !panel || Number(panel.dataset.id) !== productoId) return;
 
+            panel.dataset.price = String(variante.price);
+            panel.dataset.stock = variante.stock_status;
+
             // 1. Actualizar Precio vigente
             const elPrecio = document.querySelector('[data-precio]');
             if (elPrecio) {
