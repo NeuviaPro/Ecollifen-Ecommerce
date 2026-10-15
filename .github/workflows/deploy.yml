@@ -7,7 +7,7 @@ on:
 
 concurrency:
   group: cpanel-git-deploy
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   build-and-trigger-cpanel:
