@@ -7,12 +7,26 @@
 # Página de error propia (la de Astro, con la identidad de la marca).
 ErrorDocument 404 /404.html
 
-# Forzar dominio canónico sin www y con HTTPS (elimina saltos y redirecciones 3xx)
 <IfModule mod_rewrite.c>
     RewriteEngine On
+
+    # 1. Forzar dominio canónico sin www y con HTTPS (elimina saltos y redirecciones 3xx)
     RewriteCond %{HTTPS} off [OR]
     RewriteCond %{HTTP_HOST} ^www\.ecollifen\.cl$ [NC]
     RewriteRule ^(.*)$ https://ecollifen.cl/$1 [L,R=301]
+
+    # 2. Bloquear acceso público a archivos internos de despliegue (.cpanel.yml, .git)
+    RewriteRule ^(\.cpanel\.yml|\.git) - [F,L]
+
+    # 3. No interferir con peticiones dirigidas a /wp
+    RewriteRule ^wp(/.*)?$ - [L]
+
+    # 4. Fallback dinámico para productos nuevos en /producto/<slug>
+    # (Solo se activa si creas src/pages/producto/detalle.astro y la carpeta del producto aún no existe en disco)
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteCond %{DOCUMENT_ROOT}/producto/detalle/index.html -f
+    RewriteRule ^producto/([^/]+)/?$ /producto/detalle/index.html [L,QSA]
 </IfModule>
 
 # Cabeceras de seguridad HTTP (resuelve alertas de seguridad en 263 URLs)
