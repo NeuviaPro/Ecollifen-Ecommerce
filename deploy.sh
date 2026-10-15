@@ -48,7 +48,7 @@ cp $CP_FLAGS dist/. "$TEMPORAL"
 
 echo "→ Cambiando a production…"
 git checkout production --quiet
-
+git pull origin production --no-rebase --quiet || true
 # OJO con el "/." final: con `cp -a origen/* .` el comodín NO incluye los
 # archivos que empiezan por punto, así que .htaccess nunca entraba en la rama
 # —ni llegaba al servidor— y con él se quedaban fuera la página 404 propia, la

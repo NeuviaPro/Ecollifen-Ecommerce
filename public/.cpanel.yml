@@ -1,0 +1,66 @@
+name: Build hacia rama y Deploy con Git de cPanel
+
+on:
+  repository_dispatch:
+    types: [woocommerce_catalog_update]
+  workflow_dispatch:
+
+concurrency:
+  group: cpanel-git-deploy
+  cancel-in-progress: true
+
+jobs:
+  build-and-trigger-cpanel:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # Permite a GitHub Actions hacer push a tu rama de build
+
+    steps:
+      - name: 1. Descargar código fuente de Astro
+        uses: actions/checkout@v4
+
+      - name: 2. Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: 3. Instalar dependencias y compilar Astro
+        run: |
+          npm ci
+          npm run build
+        env:
+          PUBLIC_WP_API_URL: ${{ secrets.PUBLIC_WP_API_URL }}
+
+      - name: 4. Subir solo el contenido de dist/ a tu rama de build
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./dist
+          publish_branch: build # <-- Cambia "build" por el nombre exacto de tu rama en cPanel
+          keep_files: false
+
+      - name: 5. Ordenar a cPanel que haga "Update from Remote" y "Deploy HEAD Commit"
+        uses: pinkasey/cpanel-deploy-action@v1.0.0
+        with:
+          hostname: 'https://s3559.usc1.stableserver.net:2083/logout/?locale=es:2083' # URL de tu cPanel con puerto 2083
+          repository_root: '/home/tu_usuario_cpanel/repositories/nombre_tu_repo'
+          branch: 'production' # <-- Tu rama de build
+          cpanel_username: '${{ secrets.CPANEL_USERNAME }}'
+          cpanel_token: '${{ secrets.CPANEL_TOKEN }}'
+
+---
+deployment:
+  tasks:
+    - export DEPLOYPATH=/home/ecollifen/public_html/
+    # 1. Sincroniza la raíz sin --delete para no tocar jamás /wp ni /.well-known
+    - /bin/rsync -avz --exclude='.git*' --exclude='.cpanel.yml' --exclude='cpanel.yml' ./ $DEPLOYPATH
+    # 2. Sincroniza CON --delete únicamente las carpetas de productos y assets de Astro.
+    # Esto elimina del servidor los productos que el cliente haya borrado en WooCommerce
+    # y limpia los JS/CSS antiguos con hash viejo sin ningún riesgo para /wp.
+    - /bin/rsync -avz --delete ./producto/ ${DEPLOYPATH}producto/
+    - /bin/rsync -avz --delete ./_astro/ ${DEPLOYPATH}_astro/
+    # Mantener permisos 755 en public_html para LiteSpeed y AutoSSL
+    - "chmod 755 $DEPLOYPATH"
+    # Purga la caché de LiteSpeed tras cada deploy
+    - "curl -s -H 'Host: ecollifen.cl' -H 'X-LiteSpeed-Purge: *' -o /dev/null http://127.0.0.1/ || true"
