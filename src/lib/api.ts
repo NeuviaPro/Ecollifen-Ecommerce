@@ -161,6 +161,12 @@ export interface WooVariation {
     dimensions?: { length: string, width: string, height: string };
 }
 
+export interface WooFichaTecnica {
+    id?: number;
+    url: string;
+    nombre?: string;
+}
+
 export interface WooProduct {
     id: number;
     name: string;
@@ -181,6 +187,8 @@ export interface WooProduct {
     variations_data?: WooVariation[];  // Variantes completas resueltas en la ficha
     default_attributes?: { id: number, name: string, option: string }[];
     price_html?: string;
+    // Ficha técnica adjunta (PDF):
+    ficha_tecnica?: WooFichaTecnica | null;
     // Datos para la ficha técnica. Hoy los productos no traen atributos
     // cargados en Woo, por eso son opcionales: la tabla se muestra solo si hay.
     // Etiquetas de producto: hoy ningún producto tiene, pero el índice del
